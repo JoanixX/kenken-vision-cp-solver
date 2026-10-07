@@ -165,23 +165,34 @@ def draw_board(inst: Instance, style: Style, paper: int = 255):
 
 
 # ============================================================ simular foto
+# Rangos de cada degradación. "hard" es un set de estrés para medir robustez:
+# más inclinación, perspectiva, sombra, desenfoque, ruido y JPEG más agresivo.
+DEGRADATION = {
+    "normal": dict(rot=12, persp=0.07, scale=(0.55, 0.85), shadow_p=0.5, shadow=(0.2, 0.5),
+                   gain=(0.75, 1.1), blur=[0, 0, 3, 5], noise=(1, 8), jpeg=(40, 95)),
+    "hard":   dict(rot=25, persp=0.12, scale=(0.45, 0.85), shadow_p=0.9, shadow=(0.4, 0.7),
+                   gain=(0.5, 1.0), blur=[3, 5, 7], noise=(6, 18), jpeg=(15, 50)),
+}
+
+
 def photograph(board: np.ndarray, corners: np.ndarray, rng: random.Random,
-               out_size: int = 900):
+               out_size: int = 900, level: str = "normal"):
     """Pega el tablero sobre un fondo con perspectiva y degradaciones de cámara.
 
     Devuelve (imagen BGR uint8, esquinas en la imagen final, homografía 3x3).
     """
     nrng = np.random.default_rng(rng.randrange(2 ** 32))
+    D = DEGRADATION[level]
     S = out_size
 
     # Cuadrilátero destino: un cuadrado rotado, escalado y con las esquinas
     # movidas al azar (= perspectiva leve).
-    side = rng.uniform(0.55, 0.85) * S
-    ang = np.deg2rad(rng.uniform(-12, 12))
+    side = rng.uniform(*D["scale"]) * S
+    ang = np.deg2rad(rng.uniform(-D["rot"], D["rot"]))
     cx, cy = S / 2 + rng.uniform(-0.06, 0.06) * S, S / 2 + rng.uniform(-0.06, 0.06) * S
     base = np.array([[-1, -1], [1, -1], [1, 1], [-1, 1]]) * side / 2
     rot = np.array([[np.cos(ang), -np.sin(ang)], [np.sin(ang), np.cos(ang)]])
-    jitter = nrng.uniform(-0.07, 0.07, (4, 2)) * side
+    jitter = nrng.uniform(-D["persp"], D["persp"], (4, 2)) * side
     dst = base @ rot.T + jitter
     # El tablero completo debe quedar dentro de la foto (con 3% de margen).
     lo, hi = 0.03 * S, 0.97 * S
@@ -211,21 +222,21 @@ def photograph(board: np.ndarray, corners: np.ndarray, rng: random.Random,
     yy, xx = np.mgrid[0:S, 0:S].astype(np.float32) / S
     gx, gy = rng.uniform(-0.5, 0.5), rng.uniform(-0.5, 0.5)
     light = 1 + gx * (xx - 0.5) + gy * (yy - 0.5)
-    if rng.random() < 0.5:
+    if rng.random() < D["shadow_p"]:
         sx, sy, r = rng.random(), rng.random(), rng.uniform(0.2, 0.5)
         shadow = np.exp(-(((xx - sx) ** 2 + (yy - sy) ** 2) / (2 * r ** 2)))
-        light *= 1 - rng.uniform(0.2, 0.5) * shadow
-    img *= light[..., None] * rng.uniform(0.75, 1.1)
+        light *= 1 - rng.uniform(*D["shadow"]) * shadow
+    img *= light[..., None] * rng.uniform(*D["gain"])
 
     # Desenfoque (foco / movimiento) y ruido de sensor.
-    k = rng.choice([0, 0, 3, 5])
+    k = rng.choice(D["blur"])
     if k:
         img = cv2.GaussianBlur(img, (k, k), 0)
-    img += nrng.normal(0, rng.uniform(1, 8), img.shape)
+    img += nrng.normal(0, rng.uniform(*D["noise"]), img.shape)
     img = np.clip(img, 0, 255).astype(np.uint8)
 
     # Compresión JPEG.
-    q = rng.randint(40, 95)
+    q = rng.randint(*D["jpeg"])
     img = cv2.imdecode(cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, q])[1], cv2.IMREAD_COLOR)
     return img, dst_corners, H
 
@@ -243,13 +254,15 @@ def screenshot(board: np.ndarray, corners: np.ndarray, rng: random.Random):
 
 
 # ============================================================ muestra completa
-def render_sample(inst: Instance, solution, rng: random.Random, photo: bool):
+def render_sample(inst: Instance, solution, rng: random.Random, photo: bool,
+                  level: str = "normal"):
     """Imagen + ground truth (dict serializable a JSON) de una instancia."""
     style = random_style(rng)
     board, corners, boxes = draw_board(inst, style)
     if photo:
         # Tableros grandes en una imagen más grande, para que las etiquetas sigan legibles.
-        img, img_corners, H = photograph(board, corners, rng, out_size=max(900, 130 * inst.n))
+        img, img_corners, H = photograph(board, corners, rng, out_size=max(900, 130 * inst.n),
+                                            level=level)
     else:
         img, img_corners, H = screenshot(board, corners, rng)
 
@@ -264,7 +277,7 @@ def render_sample(inst: Instance, solution, rng: random.Random, photo: bool):
     gt = inst.to_dict()
     gt["solution"] = solution
     gt["image"] = {
-        "kind": "photo" if photo else "screenshot",
+        "kind": ("photo" if level == "normal" else f"photo_{level}") if photo else "screenshot",
         "corners": np.round(img_corners, 2).tolist(),     # TL, TR, BR, BL
         "H": np.asarray(H).tolist(),                       # tablero limpio -> imagen
         "label_boxes": norm_boxes,                         # una por jaula, mismo orden
@@ -276,7 +289,7 @@ def render_sample(inst: Instance, solution, rng: random.Random, photo: bool):
 
 
 def make_dataset(out_dir: str | Path, count: int, n_range=(3, 9), photo_prob: float = 0.7,
-                 seed: int = 0, prefix: str = "syn") -> list[Path]:
+                 seed: int = 0, prefix: str = "syn", level: str = "normal") -> list[Path]:
     """Genera `count` pares imagen.png + imagen.json en out_dir."""
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -285,10 +298,10 @@ def make_dataset(out_dir: str | Path, count: int, n_range=(3, 9), photo_prob: fl
     for k in range(count):
         n = rng.randint(*n_range)
         inst, solution = generate(n, seed=rng.randrange(2 ** 31))
-        img, gt = render_sample(inst, solution, rng, photo=rng.random() < photo_prob)
+        img, gt = render_sample(inst, solution, rng, photo=rng.random() < photo_prob, level=level)
         stem = out / f"{prefix}_{k:05d}"
         # Las "fotos" ya pasaron por JPEG: guardarlas como .jpg ocupa ~10x menos.
-        img_path = stem.with_suffix(".jpg" if gt["image"]["kind"] == "photo" else ".png")
+        img_path = stem.with_suffix(".png" if gt["image"]["kind"] == "screenshot" else ".jpg")
         gt["image"]["file"] = img_path.name
         params = [cv2.IMWRITE_JPEG_QUALITY, 95] if img_path.suffix == ".jpg" else []
         cv2.imwrite(str(img_path), img, params)
@@ -306,6 +319,9 @@ if __name__ == "__main__":
     ap.add_argument("--nmax", type=int, default=9)
     ap.add_argument("--photo-prob", type=float, default=0.7)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--level", choices=list(DEGRADATION), default="normal")
+    ap.add_argument("--prefix", default="syn")
     a = ap.parse_args()
-    paths = make_dataset(a.out, a.count, (a.nmin, a.nmax), a.photo_prob, a.seed)
+    paths = make_dataset(a.out, a.count, (a.nmin, a.nmax), a.photo_prob, a.seed,
+                         a.prefix, a.level)
     print(f"{len(paths)} imágenes en {a.out}")
