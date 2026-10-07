@@ -253,6 +253,50 @@ def screenshot(board: np.ndarray, corners: np.ndarray, rng: random.Random):
     return img, corners + pad, H
 
 
+# ============================================================ etiquetas sueltas (CNN)
+def random_label_text(rng: random.Random, glyphs: dict) -> str:
+    """Texto de etiqueta al azar con las 5 operaciones igual de frecuentes
+    (en los tableros '÷' y '−' son raras; aquí se balancean las clases)."""
+    n_digits = rng.choices([1, 2, 3, 4], [0.35, 0.35, 0.2, 0.1])[0]
+    digits = str(rng.randint(1, 9)) + "".join(str(rng.randint(0, 9)) for _ in range(n_digits - 1))
+    op = rng.choice(["=", "+", "-", "*", "/"])
+    return digits + glyphs[op]
+
+
+def render_label_crop(text: str, rng: random.Random, font_path: str | None = None,
+                      cell_h: int = 160) -> np.ndarray:
+    """Zona de etiqueta en gris como la recorta ocr.crop_label (celda de alto
+    cell_h, mitad superior), con degradaciones: baja resolución, desenfoque,
+    ruido, JPEG, contraste, gradiente de luz y una leve rotación."""
+    font_path = font_path or rng.choice(available_fonts())
+    font = ImageFont.truetype(font_path, int(rng.uniform(0.18, 0.28) * cell_h))
+    h, w = int(0.47 * cell_h), int(0.94 * cell_h * rng.uniform(1.0, 1.3))
+    paper, ink = rng.randint(150, 255), rng.randint(0, 110)
+    img = Image.new("L", (w, h), paper)
+    ImageDraw.Draw(img).text((rng.uniform(0.02, 0.08) * cell_h, rng.uniform(0.02, 0.08) * cell_h),
+                             text, fill=ink, font=font, anchor="lt")
+    g = np.array(img, np.float32)
+
+    if rng.random() < 0.7:  # leve rotación / perspectiva residual
+        M = cv2.getRotationMatrix2D((w / 2, h / 2), rng.uniform(-4, 4), 1.0)
+        M[0, 1] += rng.uniform(-0.08, 0.08)  # cizalla
+        g = cv2.warpAffine(g, M, (w, h), borderValue=paper)
+    xx = np.linspace(-0.5, 0.5, w)[None, :]
+    yy = np.linspace(-0.5, 0.5, h)[:, None]
+    g *= 1 + rng.uniform(-0.25, 0.25) * xx + rng.uniform(-0.25, 0.25) * yy
+    f = rng.uniform(0.3, 1.0)  # resolución efectiva: celdas de ~50 a ~160 px
+    small = cv2.resize(g, (max(8, int(w * f)), max(4, int(h * f))), interpolation=cv2.INTER_AREA)
+    nrng = np.random.default_rng(rng.randrange(2 ** 32))
+    small += nrng.normal(0, rng.uniform(0, 10), small.shape)
+    small = np.clip(small, 0, 255).astype(np.uint8)
+    if rng.random() < 0.6:
+        small = cv2.imdecode(cv2.imencode(".jpg", small, [cv2.IMWRITE_JPEG_QUALITY,
+                                                          rng.randint(25, 95)])[1], 0)
+    g = cv2.resize(small, (w, h), interpolation=cv2.INTER_CUBIC)
+    k = rng.choice([0, 0, 3])
+    return cv2.GaussianBlur(g, (k, k), 0) if k else g
+
+
 # ============================================================ muestra completa
 def render_sample(inst: Instance, solution, rng: random.Random, photo: bool,
                   level: str = "normal"):
