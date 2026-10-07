@@ -1,0 +1,16 @@
+(a) etiquetas sueltas: 32762 glifos  (27s)
+(b) recortes de tableros: 14491 glifos  (110s)
+glifos por clase: {'0': 2025, '1': 4662, '2': 4012, '3': 3457, '4': 3515, '5': 3176, '6': 3314, '7': 2867, '8': 3259, '9': 2800, '+': 4309, '-': 2717, '*': 4352, '/': 2788}
+época  1  pérdida 0.6137  train 0.8439  val 0.9630  (94s)
+época  2  pérdida 0.1335  train 0.9627  val 0.9649  (85s)
+época  3  pérdida 0.1221  train 0.9639  val 0.9621  (85s)
+época  4  pérdida 0.1135  train 0.9664  val 0.9651  (111s)
+época  5  pérdida 0.1067  train 0.9675  val 0.9702  (96s)
+época  6  pérdida 0.0983  train 0.9708  val 0.9721  (86s)
+época  7  pérdida 0.0911  train 0.9719  val 0.9704  (121s)
+época  8  pérdida 0.0834  train 0.9735  val 0.9750  (128s)
+época  9  pérdida 0.0803  train 0.9750  val 0.9761  (1323s)
+época 10  pérdida 0.0733  train 0.9767  val 0.9769  (96s)
+época 11  pérdida 0.0683  train 0.9783  val 0.9771  (95s)
+época 12  pérdida 0.0663  train 0.9797  val 0.9767  (108s)
+modelo guardado en C:\Users\practicante.coe03\Desktop\Clases\Topicos en Ciencias de la Computacion\TP\models\ocr_cnn.pt
