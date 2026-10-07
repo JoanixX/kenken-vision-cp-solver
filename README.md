@@ -17,6 +17,18 @@ python -m kenken examples/4x4_a.json     # resuelve una instancia JSON
 python -m pytest -q                      # pruebas
 ```
 
+Desde Python:
+
+```python
+from kenken import Instance, solve
+from kenken.generator import generate
+
+inst = Instance.load("examples/5x5_a.json").validate()
+res = solve(inst)            # res.grid, res.status, res.wall_time, res.branches, res.conflicts
+
+inst, sol = generate(7, seed=1)   # puzzle aleatorio 7x7 con solución única
+```
+
 ## Dataset sintético (hito 2)
 
 ```bash
@@ -48,17 +60,29 @@ python -m kenken.evaluate dataset/synthetic_hard --no-labels    # ablación sin 
 | Difícil, sin regla de etiquetas | 150 | 100 % | 100 % | 96.0 % | 99.9 % |
 | Difícil, con regla de etiquetas | 150 | 100 % | 100 % | 98.0 % | 99.8 % |
 
-Desde Python:
+## OCR de etiquetas con CNN propia (hito 4)
 
-```python
-from kenken import Instance, solve
-from kenken.generator import generate
+Explicación detallada en [`docs/cnn_explicada.md`](docs/cnn_explicada.md).
 
-inst = Instance.load("examples/5x5_a.json").validate()
-res = solve(inst)            # res.grid, res.status, res.wall_time, res.branches, res.conflicts
-
-inst, sol = generate(7, seed=1)   # puzzle aleatorio 7x7 con solución única
+```bash
+python -m kenken.cnn                                    # genera ~47k glifos sintéticos, entrena (~20 min CPU)
+python -m kenken.evaluate --ocr dataset/synthetic results/ocr_synthetic.csv
+python -m kenken.evaluate --ocr dataset/synthetic_hard results/ocr_synthetic_hard.csv
+python -m kenken.evaluate --ocr dataset/synthetic --no-alt   # ablación sin segmentaciones alternativas
+python -m kenken.figures                                # curvas de entrenamiento y matrices de confusión
 ```
+
+CNN: 3 bloques convolucionales + 2 capas lineales, 403k parámetros, entrada 32×32, 14 clases.
+Validación 97.7 %; **99.5 % por glifo** en el set normal cuando la segmentación es correcta.
+
+| Set | Segmentación | Etiqueta top-1 | Etiqueta top-5 | Tablero completo | Tablero (todas en top-5) |
+|---|---|---|---|---|---|
+| Normal, sin alternativas | 96.4 % | 95.8 % | 96.4 % | 71.0 % | 74.0 % |
+| Normal, con alternativas | 96.4 % | 97.4 % | 98.9 % | 80.7 % | 88.7 % |
+| Difícil, sin alternativas | 75.5 % | 68.1 % | 72.7 % | 18.0 % | 18.0 % |
+| Difícil, con alternativas | 75.5 % | 74.9 % | 83.2 % | 27.3 % | 39.3 % |
+
+"Tablero (todas en top-5)" es el techo que puede alcanzar la inferencia conjunta del modelo CP (hito 6).
 
 ## Estructura actual
 
@@ -71,8 +95,13 @@ inst, sol = generate(7, seed=1)   # puzzle aleatorio 7x7 con solución única
 | `kenken/preprocessing.py` | Carga, binarización adaptativa/Otsu, detección del tablero, homografía |
 | `kenken/grid.py` | Detección de n con perfiles de proyección y posición de las líneas |
 | `kenken/cages.py` | Grosor de bordes + Otsu 1D + Union-Find; regla "una etiqueta por jaula" |
-| `kenken/pipeline.py` | `extract_structure(img)`: imagen → tablero, n, jaulas |
-| `kenken/evaluate.py` | Métricas de estructura por imagen → CSV |
+| `kenken/ocr.py` | Recorte de etiquetas, segmentación en caracteres, decodificación top-k con gramática |
+| `kenken/cnn.py` | CNN propia (PyTorch): arquitectura, datos sintéticos, entrenamiento, inferencia |
+| `kenken/pipeline.py` | `extract_structure(img)`: imagen → tablero, n, jaulas; `read_instance(st)`: → instancia + candidatas |
+| `kenken/evaluate.py` | Métricas de estructura y de OCR por imagen → CSV |
+| `kenken/figures.py` | Figuras del informe (curvas de entrenamiento, matrices de confusión) |
+| `models/ocr_cnn.pt` | Pesos entrenados de la CNN |
+| `docs/cnn_explicada.md` | Explicación detallada de la CNN y su entrenamiento |
 | `kenken/visualize.py` | Figura de etapas de la visión |
 | `examples/` | 3 instancias escritas a mano (3x3, 4x4, 5x5) + 1 generada (6x6, seed 6) |
 | `tests/` | Pruebas con pytest |
