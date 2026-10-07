@@ -1,0 +1,11 @@
+# Hito 1 (modelo CP + generador)
+ortools>=9.10
+numpy
+pytest
+# Hitos siguientes (visión, CNN, notebook)
+opencv-python
+matplotlib
+torch
+torchvision
+pillow
+pandas
