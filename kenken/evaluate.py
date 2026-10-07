@@ -7,7 +7,16 @@ Hito 3 (estructura): por imagen se mide
   - cage_f1:   fracción de jaulas reales recuperadas tal cual (acierto parcial)
   - edge_acc:  fracción de fronteras internas bien clasificadas (fina/gruesa)
 
+Hito 4 (OCR de etiquetas), solo en jaulas cuya partición se detectó bien:
+  - seg_ok:    la segmentación dio tantos glifos como caracteres reales
+  - top1 / topk: la lectura correcta (objetivo y operación) es la 1.ª / está entre las k
+  - inst_ok:   tablero completo correcto (estructura + todas las etiquetas en top-1)
+  - inst_topk: todas las etiquetas correctas están entre sus k candidatas
+               (es lo que la inferencia conjunta del modelo CP puede aprovechar)
+  Además, matriz de confusión por glifo cuando la segmentación coincide.
+
 Uso:  python -m kenken.evaluate dataset/synthetic results/structure_synthetic.csv [--no-labels]
+      python -m kenken.evaluate --ocr dataset/synthetic results/ocr_synthetic.csv [--no-alt]
 """
 
 from __future__ import annotations
@@ -20,7 +29,8 @@ from pathlib import Path
 
 import numpy as np
 
-from .pipeline import extract_structure
+from .ocr import CLASS_INDEX, CLASSES, GLYPH_TO_CLASS
+from .pipeline import extract_structure, read_instance
 from .preprocessing import load_image
 
 
@@ -96,8 +106,104 @@ def summarize(rows: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def _image_path(js: Path, gt: dict) -> Path:
+    name = gt.get("image", {}).get("file")
+    return js.parent / name if name else next(
+        p for p in js.parent.glob(js.stem + ".*") if p.suffix.lower() != ".json")
+
+
+def _gt_label_text(gt: dict, k: int) -> str | None:
+    labels = gt.get("image", {}).get("labels")
+    return labels[k] if labels else None
+
+
+def evaluate_ocr(dataset_dir: str | Path, out_csv: str | Path | None = None, k: int = 5,
+                 alternatives: bool = True):
+    """Devuelve (filas por imagen, matriz de confusión de glifos 14x14)."""
+    rows = []
+    confusion = np.zeros((len(CLASSES), len(CLASSES)), int)
+    for js in sorted(Path(dataset_dir).glob("*.json")):
+        gt = json.loads(js.read_text("utf-8"))
+        img_path = _image_path(js, gt)
+        row = {"image": img_path.name, "kind": gt.get("image", {}).get("kind", "real"),
+               "n": gt["n"], "labels": len(gt["cages"])}
+        t = time.perf_counter()
+        try:
+            st = extract_structure(load_image(img_path))
+            inst = read_instance(st, k=k, alternatives=alternatives)
+        except Exception as e:
+            rows.append({**row, "error": str(e), "time": time.perf_counter() - t})
+            continue
+        row["time"] = time.perf_counter() - t
+        row["structure_ok"] = structure_metrics(gt, st)["cages_ok"]
+
+        pred_by_cells = {tuple(sorted(c.cells)): (c, inst.candidates.get(i, []), i)
+                         for i, c in enumerate(inst.cages)}
+        seg_ok = top1 = topk = matched = 0
+        for gk, gc in enumerate(gt["cages"]):
+            key = tuple(sorted(map(tuple, gc["cells"])))
+            if key not in pred_by_cells:
+                continue
+            matched += 1
+            cage, cands, i = pred_by_cells[key]
+            truth = (gc["target"], gc.get("op", "="))
+            top1 += (cage.target, cage.op) == truth
+            topk += any((r["target"], r["op"]) == truth for r in cands)
+            text = _gt_label_text(gt, gk)
+            lp = st.debug["glyph_log_probs"][i]
+            if text is not None and len(lp) == len(text):
+                seg_ok += 1
+                for ch, row_lp in zip(text, lp):
+                    confusion[CLASS_INDEX[GLYPH_TO_CLASS[ch]], int(np.argmax(row_lp))] += 1
+        row.update(matched=matched, seg_ok=seg_ok, top1=top1, topk=topk,
+                   inst_ok=row["structure_ok"] and top1 == len(gt["cages"]),
+                   inst_topk=row["structure_ok"] and topk == len(gt["cages"]))
+        rows.append(row)
+
+    if out_csv:
+        Path(out_csv).parent.mkdir(parents=True, exist_ok=True)
+        keys = ["image", "kind", "n", "labels", "structure_ok", "matched", "seg_ok", "top1",
+                "topk", "inst_ok", "inst_topk", "time", "error"]
+        with open(out_csv, "w", newline="", encoding="utf-8") as f:
+            w = csv.DictWriter(f, fieldnames=keys, extrasaction="ignore")
+            w.writeheader()
+            w.writerows(rows)
+    return rows, confusion
+
+
+def summarize_ocr(rows: list[dict], confusion: np.ndarray) -> str:
+    def block(name, sub):
+        lab = sum(r.get("labels", 0) for r in sub)
+        m = sum(r.get("matched", 0) for r in sub)
+        return (f"{name:<12}{len(sub):>6}{100 * sum(r.get('seg_ok', 0) for r in sub) / max(m, 1):>9.1f}%"
+                f"{100 * sum(r.get('top1', 0) for r in sub) / max(lab, 1):>8.1f}%"
+                f"{100 * sum(r.get('topk', 0) for r in sub) / max(lab, 1):>8.1f}%"
+                f"{100 * np.mean([bool(r.get('inst_ok')) for r in sub]):>9.1f}%"
+                f"{100 * np.mean([bool(r.get('inst_topk')) for r in sub]):>10.1f}%")
+
+    lines = [f"{'grupo':<12}{'imgs':>6}{'segment.':>10}{'top-1':>9}{'top-k':>9}{'tablero':>10}{'tab. top-k':>11}"]
+    lines.append(block("todas", rows))
+    for kind in sorted({r["kind"] for r in rows}):
+        lines.append(block(kind, [r for r in rows if r["kind"] == kind]))
+    for n in sorted({r["n"] for r in rows}):
+        lines.append(block(f"n={n}", [r for r in rows if r["n"] == n]))
+    acc = np.trace(confusion) / max(confusion.sum(), 1)
+    lines.append(f"exactitud por glifo (segmentación correcta): {100 * acc:.2f}% "
+                 f"sobre {confusion.sum()} glifos")
+    return "\n".join(lines)
+
+
 if __name__ == "__main__":
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    if "--ocr" in sys.argv:
+        rows, conf = evaluate_ocr(args[0], args[1] if len(args) > 1 else None,
+                                  alternatives="--no-alt" not in sys.argv)
+        print(summarize_ocr(rows, conf))
+        if len(args) > 1:
+            np.savetxt(Path(args[1]).with_suffix(".confusion.csv"), conf, fmt="%d", delimiter=",",
+                       header=",".join(CLASSES), comments="")
+        print(f"tiempo medio por imagen: {np.mean([r['time'] for r in rows]):.3f}s")
+        sys.exit()
     rows = evaluate_structure(args[0], args[1] if len(args) > 1 else None,
                               use_labels="--no-labels" not in sys.argv)
     print(summarize(rows))
