@@ -84,6 +84,30 @@ Validación 97.7 %; **99.5 % por glifo** en el set normal cuando la segmentació
 
 "Tablero (todas en top-5)" es el techo que puede alcanzar la inferencia conjunta del modelo CP (hito 6).
 
+## De la foto a la solución (hito 5)
+
+```bash
+python -m kenken.pipeline foto.jpg                      # imprime instancia y solución, guarda foto_solucion.png
+python -m kenken.evaluate --e2e dataset/synthetic results/e2e_synthetic.csv
+```
+
+```python
+from kenken.pipeline import solve_image
+r = solve_image("foto.jpg")      # r.status, r.instance, r.solution, r.overlay (foto con la solución), r.times
+```
+
+Sin intervención manual: tablero → jaulas → etiquetas (CNN) → instancia validada → CP-SAT →
+solución dibujada sobre la foto original (proyectada con la homografía inversa).
+Tiempo medio por imagen ≈ 0.6 s (estructura 0.07 s, OCR 0.48 s, CP-SAT 0.014 s, dibujo 0.04 s).
+
+| Set | Imágenes | Solución correcta | Falla estructura | Falla OCR | Solución incorrecta | Falla modelo |
+|---|---|---|---|---|---|---|
+| Normal | 300 | **80.7 %** | 0.0 % | 19.3 % | 0.0 % | 0.0 % |
+| Difícil | 150 | 27.3 % | 2.0 % | 70.7 % | 0.0 % | 0.0 % |
+
+Las lecturas erróneas dejan el puzzle sin solución (o inválido) en lugar de dar una solución
+falsa: el modelo CP **detecta** el error de visión. El hito 6 lo aprovecha para **corregirlo**.
+
 ## Estructura actual
 
 | Archivo | Contenido |
@@ -97,11 +121,11 @@ Validación 97.7 %; **99.5 % por glifo** en el set normal cuando la segmentació
 | `kenken/cages.py` | Grosor de bordes + Otsu 1D + Union-Find; regla "una etiqueta por jaula" |
 | `kenken/ocr.py` | Recorte de etiquetas, segmentación en caracteres, decodificación top-k con gramática |
 | `kenken/cnn.py` | CNN propia (PyTorch): arquitectura, datos sintéticos, entrenamiento, inferencia |
-| `kenken/pipeline.py` | `extract_structure(img)`: imagen → tablero, n, jaulas; `read_instance(st)`: → instancia + candidatas |
+| `kenken/pipeline.py` | `extract_structure` (tablero, n, jaulas), `read_instance` (etiquetas + candidatas), `solve_image` (foto → solución) |
 | `kenken/evaluate.py` | Métricas de estructura y de OCR por imagen → CSV |
 | `kenken/figures.py` | Figuras del informe (curvas de entrenamiento, matrices de confusión) |
 | `models/ocr_cnn.pt` | Pesos entrenados de la CNN |
 | `docs/cnn_explicada.md` | Explicación detallada de la CNN y su entrenamiento |
-| `kenken/visualize.py` | Figura de etapas de la visión |
+| `kenken/visualize.py` | Etapas de la visión, grilla limpia con la solución, solución sobre la foto, figura resumen |
 | `examples/` | 3 instancias escritas a mano (3x3, 4x4, 5x5) + 1 generada (6x6, seed 6) |
 | `tests/` | Pruebas con pytest |
