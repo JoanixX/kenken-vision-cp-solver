@@ -16,6 +16,13 @@ from .model import (
 )
 
 from .pipeline import PipelineResult, extract_structure, read_instance, solve_image
+from .visualize import (
+    draw_solution_clean,
+    overlay_solution_on_original,
+    overlay_solution_on_rectified,
+    plot_structure,
+    render_solution_composite,
+)
 
 __all__ = [
     "Cage",
@@ -28,10 +35,15 @@ __all__ = [
     "build_model_table",
     "check_solution",
     "compute_allowed_tuples",
+    "draw_solution_clean",
     "extract_structure",
     "find_solutions",
     "has_unique_solution",
+    "overlay_solution_on_original",
+    "overlay_solution_on_rectified",
+    "plot_structure",
     "read_instance",
+    "render_solution_composite",
     "solve",
     "solve_image",
     "solve_joint",

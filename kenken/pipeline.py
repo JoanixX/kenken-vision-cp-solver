@@ -100,6 +100,7 @@ class PipelineResult:
     instance: Instance
     solve_result: SolveResult
     fallback_used: bool = False
+    output_image_path: Path | None = None
 
     @property
     def solved(self) -> bool:
@@ -113,6 +114,68 @@ class PipelineResult:
     def status(self) -> str:
         return self.solve_result.status
 
+    def render_solution(
+        self, out_path: str | Path | None = None, mode: str = "composite"
+    ) -> np.ndarray:
+        """Genera una imagen con el KenKen resuelto.
+
+        Modos disponibles:
+          - 'clean': Tablero gráfico vectorial nítido con jaulas y solución.
+          - 'rectified': Números de la solución sobre el tablero rectificado.
+          - 'original': Números proyectados con perspectiva sobre la foto original.
+          - 'composite': Panel comparativo lado a lado (Entrada original / Solución KenKen).
+        """
+        if not self.solved or self.grid is None:
+            raise ValueError(
+                "No se puede generar la imagen de la solución porque el puzzle no fue resuelto."
+            )
+
+        from .visualize import (
+            draw_solution_clean,
+            overlay_solution_on_original,
+            overlay_solution_on_rectified,
+            render_solution_composite,
+        )
+
+        if mode == "clean":
+            img = draw_solution_clean(self.instance, self.grid, out_path=out_path)
+        elif mode == "rectified":
+            img = overlay_solution_on_rectified(
+                self.structure.rect,
+                self.structure.xs,
+                self.structure.ys,
+                self.grid,
+                out_path=out_path,
+            )
+        elif mode == "original":
+            img = overlay_solution_on_original(
+                self.image, self.structure, self.grid, out_path=out_path
+            )
+        elif mode == "composite":
+            img = render_solution_composite(
+                self.image,
+                self.instance,
+                self.grid,
+                st=self.structure,
+                out_path=out_path,
+            )
+        else:
+            raise ValueError(
+                f"Modo de renderizado desconocido: {mode}. Use 'clean', 'rectified', 'original' o 'composite'."
+            )
+
+        if out_path:
+            self.output_image_path = Path(out_path)
+
+        return img
+
+    def save_solution_image(
+        self, out_path: str | Path, mode: str = "composite"
+    ) -> Path:
+        """Guarda la imagen con la solución en la ruta indicada y devuelve el Path."""
+        self.render_solution(out_path=out_path, mode=mode)
+        return Path(out_path)
+
 
 def solve_image(
     img_or_path: str | Path | np.ndarray,
@@ -123,6 +186,8 @@ def solve_image(
     redundant: bool = False,
     rect_size: int = RECT_SIZE,
     alternatives: bool = True,
+    output_image: str | Path | None = None,
+    render_mode: str = "composite",
 ) -> PipelineResult:
     """Resuelve un puzzle KenKen desde una imagen de forma end-to-end sin intervención manual.
 
@@ -133,6 +198,7 @@ def solve_image(
          - Si method == 'auto': intenta primero con la lectura directa (Variante A).
            Si es INFEASIBLE, activa automáticamente la inferencia conjunta (Variante C).
          - Si method in ('arithmetic', 'table', 'joint'): ejecuta la variante indicada.
+      4. Visualización (opcional): si se especifica output_image, renderiza y guarda la solución.
 
     Devuelve un PipelineResult con la grilla solución, estadísticas y datos de visión.
     """
@@ -190,11 +256,16 @@ def solve_image(
             f"Método desconocido: {method}. Use 'auto', 'arithmetic', 'table' o 'joint'."
         )
 
-    return PipelineResult(
+    result = PipelineResult(
         image=img,
         structure=st,
         instance=inst,
         solve_result=res,
         fallback_used=fallback_used,
     )
+
+    if output_image and result.solved:
+        result.render_solution(out_path=output_image, mode=render_mode)
+
+    return result
 

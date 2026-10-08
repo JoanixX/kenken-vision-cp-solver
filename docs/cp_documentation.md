@@ -482,3 +482,66 @@ pdflatex main.tex
 | **Modelado Formal CSP** | 3 pts | Especificación formal $\langle X, D, C \rangle$, dominios, variantes A, B, C | Sección 1 a 4 y [`informe/cp_model_section.tex`](../informe/cp_model_section.tex) Sec. II |
 | **Integración Pipeline** | 2 pts | `solve_image()` con fallback automático a inferencia conjunta en [`kenken/pipeline.py`](../kenken/pipeline.py) | Sección 5 e [`informe/main.tex`](../informe/main.tex) Sec. II |
 | **Informe Técnico** | 5 pts | Código LaTeX completo, modular y listo para compilar con bibliografía | [`informe/main.tex`](../informe/main.tex), [`informe/cp_model_section.tex`](../informe/cp_model_section.tex), [`informe/refs.bib`](../informe/refs.bib) |
+
+---
+
+## 8. Generación y Renderizado de la Solución como Imagen
+
+Para cumplir con el criterio de la rúbrica de evaluación (*"La solución se muestra visualmente de forma clara: 1 punto"*), el sistema implementa un motor de renderizado gráfico de alta resolución en [`kenken/visualize.py`](../kenken/visualize.py).
+
+### 8.1. Modos de Renderizado Disponibles
+
+1. **Modo `composite` (Recomendado):**
+   * Produce una imagen comparativa lado a lado de doble panel.
+   * **Panel izquierdo:** Imagen de entrada original con el contorno proyectado en verde y los dígitos solución proyectados con la homografía inversa $H^{-1}$.
+   * **Panel derecho:** Grilla gráfica vectorial limpia con bordes de jaula reforzados, etiquetas en la esquina superior izquierda y solución numérica.
+   * **Encabezado superior:** Metadatos del acertijo, dimensión $n \times n$ y solver CP-SAT.
+
+2. **Modo `clean`:**
+   * Genera un tablero gráfico limpio sobre lienzo blanco.
+   * Bordes gruesos exteriores e inter-jaula en negro (`#19191E`, grosor 4-5 px).
+   * Líneas tenues interiores de jaula (`#D7DCE4`).
+   * Etiquetas aritméticas (`12+`, `3-`, `2/`, `24*`) en la esquina de cada jaula.
+   * Dígitos de la solución centrados en azul real de alto contraste (`#0D47A1`).
+
+3. **Modo `original`:**
+   * Proyecta la solución directamente sobre la foto o escaneo original sin recortar.
+   * Mapea los centros de cada celda $(x, y)$ en el espacio rectificado hacia las coordenadas proyectivas $(u, v)$ de la foto mediante la homografía inversa $H^{-1}$ (`cv2.perspectiveTransform`).
+   * Incluye un halo blanco perimetral para asegurar legibilidad sobre cualquier textura, sombra o fondo.
+
+4. **Modo `rectified`:**
+   * Superpone los dígitos calculados directamente sobre el tablero rectificado de $900 \times 900$ píxeles.
+
+### 8.2. Uso desde la Interfaz de Línea de Comandos (CLI)
+
+El solver permite generar la imagen de la solución directamente desde la terminal con el argumento `--output-img` (o `-o`):
+
+```bash
+# Resolver una imagen y guardar la imagen comparativa compuesta
+python -m kenken dataset/synthetic/syn_00000.png --output-img results/syn_00000_resuelto.png --render-mode composite
+
+# Resolver una imagen y guardar solo la grilla limpia
+python -m kenken dataset/synthetic/syn_00000.png --output-img results/syn_00000_clean.png --render-mode clean
+
+# Resolver una instancia JSON y exportar su imagen
+python -m kenken examples/4x4_a.json --output-img results/4x4_resuelto.png
+```
+
+### 8.3. Uso Programático en Python
+
+```python
+from kenken.pipeline import solve_image
+
+# Opción A: Guardado automático durante solve_image
+result = solve_image(
+    "dataset/synthetic/syn_00000.png",
+    output_image="results/solucion_kenken.png",
+    render_mode="composite",
+)
+
+# Opción B: Exportar en múltiples formatos desde el objeto PipelineResult
+if result.solved:
+    result.save_solution_image("results/tablero_limpio.png", mode="clean")
+    result.save_solution_image("results/sobre_foto_original.png", mode="original")
+```
+
