@@ -130,7 +130,7 @@ def _gt_label_text(gt: dict, k: int) -> str | None:
 
 
 def evaluate_ocr(dataset_dir: str | Path, out_csv: str | Path | None = None, k: int = 5,
-                 alternatives: bool = True):
+                 alternatives: bool = True, model=None):
     """Devuelve (filas por imagen, matriz de confusión de glifos 14x14)."""
     rows = []
     confusion = np.zeros((len(CLASSES), len(CLASSES)), int)
@@ -142,7 +142,7 @@ def evaluate_ocr(dataset_dir: str | Path, out_csv: str | Path | None = None, k: 
         t = time.perf_counter()
         try:
             st = extract_structure(load_image(img_path))
-            inst = read_instance(st, k=k, alternatives=alternatives)
+            inst = read_instance(st, k=k, model=model, alternatives=alternatives)
         except Exception as e:
             rows.append({**row, "error": str(e), "time": time.perf_counter() - t})
             continue
@@ -265,13 +265,27 @@ def summarize_end2end(rows: list[dict]) -> str:
 
 
 if __name__ == "__main__":
-    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    args = []
+    model_path = None
+    skip_next = False
+    for i, a in enumerate(sys.argv[1:]):
+        if skip_next:
+            skip_next = False
+            continue
+        if a == "--model" and i + 2 < len(sys.argv):
+            model_path = sys.argv[i + 2]
+            skip_next = True
+            continue
+        if not a.startswith("--"):
+            args.append(a)
+
     if "--e2e" in sys.argv:
         print(summarize_end2end(evaluate_end2end(args[0], args[1] if len(args) > 1 else None)))
         sys.exit()
     if "--ocr" in sys.argv:
         rows, conf = evaluate_ocr(args[0], args[1] if len(args) > 1 else None,
-                                  alternatives="--no-alt" not in sys.argv)
+                                  alternatives="--no-alt" not in sys.argv,
+                                  model=model_path)
         print(summarize_ocr(rows, conf))
         if len(args) > 1:
             np.savetxt(Path(args[1]).with_suffix(".confusion.csv"), conf, fmt="%d", delimiter=",",

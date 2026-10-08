@@ -1,0 +1,12 @@
+Modelo base: models/ocr_cnn.pt
+Glifos totales: 33122
+Distribución: {'0': 513, '1': 2063, '2': 3248, '3': 1910, '4': 3109, '5': 3104, '6': 1754, '7': 1763, '8': 3084, '9': 1725, '+': 2995, '-': 2316, '*': 2871, '/': 2667}
+época  1  pérdida 0.0380  train 0.9920  val 0.9925  (29.4s)
+época  2  pérdida 0.0344  train 0.9928  val 0.9928  (29.2s)
+época  3  pérdida 0.0335  train 0.9930  val 0.9928  (44.1s)
+época  4  pérdida 0.0323  train 0.9936  val 0.9928  (44.7s)
+época  5  pérdida 0.0304  train 0.9942  val 0.9931  (44.1s)
+época  6  pérdida 0.0288  train 0.9944  val 0.9928  (42.6s)
+época  7  pérdida 0.0290  train 0.9944  val 0.9925  (45.9s)
+época  8  pérdida 0.0283  train 0.9944  val 0.9921  (44.8s)
+Guardado en: models/ocr_cnn_finetuned.pt

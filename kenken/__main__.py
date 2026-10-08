@@ -45,6 +45,12 @@ def main():
         action="store_true",
         help="Activar restricciones redundantes de suma triangular",
     )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=None,
+        help="Ruta a los pesos del modelo OCR (default: models/ocr_cnn.pt)",
+    )
 
     args = parser.parse_args()
     arg_path = Path(args.path)
@@ -61,6 +67,7 @@ def main():
             arg_path,
             method=args.method,
             redundant=args.redundant,
+            cnn_model=args.model,
             output_image=args.output_img,
             render_mode=args.render_mode,
         )

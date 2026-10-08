@@ -248,11 +248,14 @@ def load(path: str | Path = MODEL_PATH) -> GlyphCNN:
 
 
 @torch.no_grad()
-def predict_log_probs(glyphs: np.ndarray, model: GlyphCNN | None = None) -> np.ndarray:
+def predict_log_probs(glyphs: np.ndarray, model: GlyphCNN | str | Path | None = None) -> np.ndarray:
     """(N, 32, 32) -> (N, 14) log-probabilidades (log_softmax de los logits)."""
     if len(glyphs) == 0:
         return np.zeros((0, len(CLASSES)), np.float32)
-    model = model or load()
+    if isinstance(model, (str, Path)):
+        model = load(model)
+    else:
+        model = model or load()
     x = torch.from_numpy(np.asarray(glyphs, np.float32)[:, None])
     return F.log_softmax(model(x), dim=1).numpy()
 
