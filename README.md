@@ -6,7 +6,7 @@
 [![OR-Tools](https://img.shields.io/badge/Google%20OR--Tools-CP--SAT%20v9.10%2B-orange.svg)](https://developers.google.com/optimization)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-red.svg)](https://pytorch.org/)
 [![OpenCV](https://img.shields.io/badge/OpenCV-4.10%2B-green.svg)](https://opencv.org/)
-[![Tests](https://img.shields.io/badge/Tests-81%20passing%20(100%25)-brightgreen.svg)](#suite-de-pruebas)
+[![Tests](https://img.shields.io/badge/Tests-84%20passing%20(100%25)-brightgreen.svg)](#suite-de-pruebas)
 [![Report](https://img.shields.io/badge/Informe-IEEEtran%20LaTeX-purple.svg)](informe/main.tex)
 
 ---
@@ -26,8 +26,9 @@ A diferencia de los enfoques tradicionales que toman decisiones rígidas en la e
   * Detección de contornos cuadrangulares dominantes y homografía proyectiva ($H$).
   * Detección automática del orden $n$ de la grilla mediante perfiles de proyección morfológica.
   * Segmentación topológica de jaulas (*cages*) combinando análisis de grosor de bordes, umbralización 1D (Otsu) y *Union-Find*.
-* **Reconocimiento Óptico de Caracteres (CNN Propia en PyTorch):**
-  * Red convolucional ligera entrenada con aumentos de datos (rotación, perspectiva, degradación JPEG, desenfoque).
+* **Reconocimiento Óptico de Caracteres (GlyphCNN Fine-Tuned con Focal Loss):**
+  * Red convolucional ligera optimizada con **Focal Loss** ($\gamma=1.5$), minería de ejemplos difíciles y congelamiento selectivo de capas.
+  * Modelo base por defecto: `models/ocr_cnn_finetuned.pt` (**99.51%** exactitud en glifos sintéticos y **90.99%** ante degradación física severa).
   * Extracción de hipótesis de segmentación y decodificación con gramática aritmética, devolviendo las $k$ mejores lecturas por jaula con sus log-probabilidades.
 * **Motor de Constraint Programming de Alto Rendimiento (Google OR-Tools CP-SAT):**
   * **Variante A (Aritmética Intensional):** Descomposición canónica con variables auxiliares para multiplicaciones encadenadas y división reificada vía variables booleanas de dirección.

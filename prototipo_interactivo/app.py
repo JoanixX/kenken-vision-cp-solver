@@ -147,6 +147,7 @@ def build_app() -> gr.Blocks:
             # 🧩 KenKen Vision-CP Solver
             ### Sistema Híbrido Neuro-Simbólico de Visión por Computador y Programación por Restricciones
             Apunta tu **cámara web o de teléfono móvil** a un acertijo KenKen o selecciona una imagen para resolverlo en tiempo real.
+            Equipado con **GlyphCNN Fine-Tuned (Focal Loss + Hard Example Mining)** y solver **Google OR-Tools CP-SAT**.
             """
         )
 
@@ -202,7 +203,7 @@ def build_app() -> gr.Blocks:
             """
             ---
             <div style="text-align: center; color: #64748b; font-size: 0.9em;">
-            Desarrollado con <b>OpenCV</b>, <b>PyTorch CNN</b> y <b>Google OR-Tools CP-SAT</b> | Alojado en Hugging Face Spaces
+            Desarrollado con <b>OpenCV</b>, <b>PyTorch GlyphCNN (Fine-Tuned)</b> y <b>Google OR-Tools CP-SAT</b> | Alojado en Hugging Face Spaces
             </div>
             """
         )

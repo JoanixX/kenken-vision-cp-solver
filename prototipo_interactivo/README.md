@@ -30,7 +30,7 @@ Sistema neuro-simbólico que combina **Visión Computacional** (OpenCV + CNN en 
 
 * **Gradio 6:** Interfaz interactiva y soporte de cámara web/móvil con HTTPS nativo.
 * **OpenCV:** Preprocesamiento morfológico, rectificación proyectiva homográfica ($H$) y segmentación de jaulas (*Union-Find*).
-* **PyTorch:** CNN propia de 3 bloques convolucionales para OCR de números y operadores matemáticos.
+* **PyTorch:** Red `GlyphCNN` fine-tuneada con Focal Loss ($\gamma=1.5$) y minería de ejemplos difíciles para máxima resiliencia ante ruido y operadores ambiguos.
 * **Google OR-Tools CP-SAT:** Motor de satisfacción y optimización de restricciones con *Lazy Clause Generation* (LCG) y Consistencia de Arco Generalizada (GAC).
 
 ## 💻 Ejecución Local

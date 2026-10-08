@@ -65,7 +65,9 @@ import torch.nn.functional as F
 from .ocr import (CLASS_INDEX, CLASSES, GLYPH_SIZE, GLYPH_TO_CLASS, crop_label, grid_line_mask,
                   label_from_gray, normalize_glyph, segment_glyphs)
 
-MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "ocr_cnn.pt"
+BASE_MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "ocr_cnn.pt"
+FINETUNED_MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "ocr_cnn_finetuned.pt"
+MODEL_PATH = FINETUNED_MODEL_PATH if FINETUNED_MODEL_PATH.exists() else BASE_MODEL_PATH
 
 
 # ============================================================ modelo
@@ -149,20 +151,25 @@ def make_board_glyphs(count: int, seed: int = 0, hard_prob: float = 0.4):
 
 # ============================================================ aumentos
 def augment(x: torch.Tensor) -> torch.Tensor:
-    """Rotación ±8°, escala 0.85-1.1, traslación ±2 px y ruido, distintos por glifo."""
+    """Rotación ±10°, escala 0.85-1.15, traslación ±2.5 px, grosor de trazo y ruido."""
     b = x.shape[0]
-    ang = (torch.rand(b) - 0.5) * 2 * np.deg2rad(8)
-    sc = 0.85 + torch.rand(b) * 0.25
-    tx, ty = (torch.rand(2, b) - 0.5) * 2 * (2 / GLYPH_SIZE) * 2
+    ang = (torch.rand(b) - 0.5) * 2 * np.deg2rad(10)
+    sc = 0.85 + torch.rand(b) * 0.30
+    tx, ty = (torch.rand(2, b) - 0.5) * 2 * (2.5 / GLYPH_SIZE) * 2
     cos, sin = torch.cos(ang) / sc, torch.sin(ang) / sc
     theta = torch.stack([torch.stack([cos, -sin, tx], 1), torch.stack([sin, cos, ty], 1)], 1)
     grid = F.affine_grid(theta, x.shape, align_corners=False)
     x = F.grid_sample(x, grid, align_corners=False, padding_mode="zeros")
-    return (x + 0.05 * torch.randn_like(x) * torch.rand(b, 1, 1, 1)).clamp(0, 1)
+
+    # Variación no lineal de grosor de trazo (simula tinta tenue o engrosada)
+    gamma = 0.75 + torch.rand(b, 1, 1, 1) * 0.60
+    x = torch.clamp(x, 0.0, 1.0) ** gamma
+
+    return (x + 0.04 * torch.randn_like(x) * torch.rand(b, 1, 1, 1)).clamp(0, 1)
 
 
 # ============================================================ entrenamiento
-def train(X: np.ndarray, y: np.ndarray, epochs: int = 12, batch: int = 128, lr: float = 2e-3,
+def train(X: np.ndarray, y: np.ndarray, epochs: int = 12, batch: int = 256, lr: float = 2e-3,
           seed: int = 0, verbose: bool = True):
     torch.manual_seed(seed)
     rng = np.random.default_rng(seed)
@@ -171,8 +178,13 @@ def train(X: np.ndarray, y: np.ndarray, epochs: int = 12, batch: int = 128, lr: 
     val, tr = idx[:n_val], idx[n_val:]
     Xt, yt = torch.from_numpy(X[:, None]), torch.from_numpy(y)
 
+    # Ponderación para clases críticas de operadores (+, -, *, /)
+    weights = torch.ones(len(CLASSES), dtype=torch.float32)
+    for op_sym in ["+", "-", "*", "/"]:
+        weights[CLASS_INDEX[op_sym]] = 1.30
+
     model = GlyphCNN()
-    opt = torch.optim.Adam(model.parameters(), lr=lr)
+    opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     steps = epochs * int(np.ceil(len(tr) / batch))
     sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=lr, total_steps=steps)
     best, best_state, history = 0.0, None, []
@@ -185,10 +197,10 @@ def train(X: np.ndarray, y: np.ndarray, epochs: int = 12, batch: int = 128, lr: 
             b = torch.from_numpy(tr[k:k + batch])
             xb, yb = augment(Xt[b]), yt[b]
             logits = model(xb)
-            loss = F.cross_entropy(logits, yb)       # -log p(clase correcta), promedio del lote
+            loss = F.cross_entropy(logits, yb, weight=weights, label_smoothing=0.03)
             opt.zero_grad()
             loss.backward()                          # gradiente de la pérdida respecto a cada peso
-            opt.step()                               # paso de Adam: ajusta los pesos
+            opt.step()                               # paso de optimizador
             sched.step()
             loss_sum += loss.item() * len(b)
             correct += (logits.argmax(1) == yb).sum().item()
@@ -196,7 +208,7 @@ def train(X: np.ndarray, y: np.ndarray, epochs: int = 12, batch: int = 128, lr: 
 
         val_acc = evaluate_accuracy(model, Xt[val], yt[val])
         history.append({"epoch": ep + 1, "loss": loss_sum / total, "train_acc": correct / total,
-                        "val_acc": val_acc})
+                        "val_acc": val_acc, "duration_s": round(time.time() - t0, 1)})
         if verbose:
             print(f"época {ep + 1:2d}  pérdida {loss_sum / total:.4f}  "
                   f"train {correct / total:.4f}  val {val_acc:.4f}  ({time.time() - t0:.0f}s)")
@@ -206,6 +218,7 @@ def train(X: np.ndarray, y: np.ndarray, epochs: int = 12, batch: int = 128, lr: 
     model.load_state_dict(best_state)
     model.eval()
     return model, history
+
 
 
 @torch.no_grad()
@@ -224,8 +237,8 @@ def save(model: GlyphCNN, path: str | Path = MODEL_PATH, **meta):
 _cache: dict = {}
 
 
-def load(path: str | Path = MODEL_PATH) -> GlyphCNN:
-    path = str(path)
+def load(path: str | Path | None = None) -> GlyphCNN:
+    path = str(path or MODEL_PATH)
     if path not in _cache:
         ckpt = torch.load(path, map_location="cpu", weights_only=False)
         assert ckpt["classes"] == CLASSES, "el modelo fue entrenado con otras clases"
@@ -237,11 +250,14 @@ def load(path: str | Path = MODEL_PATH) -> GlyphCNN:
 
 
 @torch.no_grad()
-def predict_log_probs(glyphs: np.ndarray, model: GlyphCNN | None = None) -> np.ndarray:
+def predict_log_probs(glyphs: np.ndarray, model: GlyphCNN | str | Path | None = None) -> np.ndarray:
     """(N, 32, 32) -> (N, 14) log-probabilidades (log_softmax de los logits)."""
     if len(glyphs) == 0:
         return np.zeros((0, len(CLASSES)), np.float32)
-    model = model or load()
+    if isinstance(model, (str, Path)):
+        model = load(model)
+    else:
+        model = model or load()
     x = torch.from_numpy(np.asarray(glyphs, np.float32)[:, None])
     return F.log_softmax(model(x), dim=1).numpy()
 
@@ -268,3 +284,15 @@ if __name__ == "__main__":
     model, hist = train(X, y, epochs=a.epochs, seed=a.seed)
     save(model, a.out, history=hist, n_train=len(X), seed=a.seed)
     print(f"modelo guardado en {a.out}")
+
+    # Guardar bitácora de entrenamiento detallada
+    log_file = Path(a.out).parent.parent / "results" / "cnn_training_log.txt"
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+    with open(log_file, "w", encoding="utf-8") as f:
+        f.write(f"(a) etiquetas sueltas: {len(Xa)} glifos\n")
+        f.write(f"(b) recortes de tableros: {len(Xb)} glifos\n")
+        f.write(f"glifos por clase: {dict(zip(CLASSES, np.bincount(y, minlength=len(CLASSES)).tolist()))}\n")
+        for h in hist:
+            f.write(f"época {h['epoch']:2d}  pérdida {h['loss']:.4f}  train {h['train_acc']:.4f}  val {h['val_acc']:.4f}  ({h.get('duration_s', 0)}s)\n")
+        f.write(f"modelo guardado en {a.out}\n")
+

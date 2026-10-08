@@ -49,7 +49,7 @@ def main():
         "--model",
         type=str,
         default=None,
-        help="Ruta a los pesos del modelo OCR (default: models/ocr_cnn.pt)",
+        help="Ruta a los pesos del modelo OCR (default: models/ocr_cnn_finetuned.pt)",
     )
 
     args = parser.parse_args()

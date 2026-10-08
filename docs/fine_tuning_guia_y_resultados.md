@@ -7,7 +7,7 @@ En este trabajo se implementó una estrategia integral de **Fine-Tuning** dirigi
 | Checkpoint | Ruta de Archivo | Hash SHA-256 | Rol / Estado |
 |---|---|---|---|
 | **Modelo Base Original** | `models/ocr_cnn.pt` | `CE25BB9D7D8FFBC721E1CC8D20369D61CB40AD43647FE96371FF60747DA010CC` | **Preservado e Intacto** (Entrenamiento inicial 99.19% val acc) |
-| **Modelo Fine-Tuned (Mejorado)** | `models/ocr_cnn_finetuned.pt` | `D4A64C20CFCF6B44D76D1C60DB3028D300D9D09D94E3EFEB71508C57073BD4DD` | **Versión Optimizada** con Focal Loss y Hard Mining |
+| **Modelo Fine-Tuned (Mejorado)** | `models/ocr_cnn_finetuned.pt` | `D4A64C20CFCF6B44D76D1C60DB3028D300D9D09D94E3EFEB71508C57073BD4DD` | **Modelo Predeterminado Activo** en Pipeline y Prototipo Gradio |
 
 ---
 

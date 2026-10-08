@@ -65,7 +65,9 @@ import torch.nn.functional as F
 from .ocr import (CLASS_INDEX, CLASSES, GLYPH_SIZE, GLYPH_TO_CLASS, crop_label, grid_line_mask,
                   label_from_gray, normalize_glyph, segment_glyphs)
 
-MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "ocr_cnn.pt"
+BASE_MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "ocr_cnn.pt"
+FINETUNED_MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "ocr_cnn_finetuned.pt"
+MODEL_PATH = FINETUNED_MODEL_PATH if FINETUNED_MODEL_PATH.exists() else BASE_MODEL_PATH
 
 
 # ============================================================ modelo
@@ -235,8 +237,8 @@ def save(model: GlyphCNN, path: str | Path = MODEL_PATH, **meta):
 _cache: dict = {}
 
 
-def load(path: str | Path = MODEL_PATH) -> GlyphCNN:
-    path = str(path)
+def load(path: str | Path | None = None) -> GlyphCNN:
+    path = str(path or MODEL_PATH)
     if path not in _cache:
         ckpt = torch.load(path, map_location="cpu", weights_only=False)
         assert ckpt["classes"] == CLASSES, "el modelo fue entrenado con otras clases"
