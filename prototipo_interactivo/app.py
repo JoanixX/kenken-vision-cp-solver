@@ -51,14 +51,47 @@ def resolver_kenken(image: np.ndarray | None, method: str, render_mode: str):
         sol_bgr = resultado.render_solution(mode=render_mode)
         sol_rgb = cv2.cvtColor(sol_bgr, cv2.COLOR_BGR2RGB)
 
-        # Resumen detallado en formato Markdown
         n = resultado.instance.n
         grid_str = "\n".join(" ".join(f"{val:2d}" for val in row) for row in resultado.grid)
-        fallback_msg = (
-            "✅ **Activada** (corrigió lecturas ambiguas del OCR)"
-            if resultado.fallback_used
-            else "⚡ **Lectura directa top-1 consistente**"
-        )
+
+        # Extraer detalle de correcciones realizadas por Inferencia Conjunta
+        corrections = []
+        if resultado.fallback_used and resultado.solve_result.chosen_candidates:
+            for c_idx, chosen in resultado.solve_result.chosen_candidates.items():
+                top1 = resultado.instance.candidates.get(c_idx, [{}])[0]
+                t1_target = top1.get("target")
+                t1_op = top1.get("op", "")
+                ch_target = chosen.get("target")
+                ch_op = chosen.get("op", "")
+                if ch_target != t1_target or ch_op != t1_op:
+                    cells_str = ", ".join(f"({r},{c})" for r, c in resultado.instance.cages[c_idx].cells)
+                    corrections.append(
+                        f"- **Jaula {c_idx}** [{cells_str}]: Top-1 visual `{t1_target}{t1_op}` ➔ Corregido a `{ch_target}{ch_op}`"
+                    )
+
+        if resultado.fallback_used:
+            num_corr = len(corrections)
+            if num_corr <= 2:
+                conf_badge = f"🟢 **Confianza Alta:** Se corrigieron {num_corr} lectura(s) ambigua(s)."
+            else:
+                conf_badge = (
+                    f"⚠️ **Alerta de Posible Divergencia:** Se corrigieron {num_corr} jaulas respecto a la imagen original. "
+                    f"Si la etiqueta real no estaba en los candidatos del OCR, la solución podría ser una variante válida diferente al impreso."
+                )
+            corr_details = "\n".join(corrections) if corrections else "*(Sin cambios sobre top-1)*"
+            diagnostico_section = f"""
+#### 🔍 Diagnóstico de Correcciones (MAP):
+{conf_badge}
+
+{corr_details}
+"""
+            fallback_msg = f"✅ **Activada ({num_corr} jaula(s) modificada(s))**"
+        else:
+            diagnostico_section = """
+#### 🔍 Diagnóstico de Lectura:
+⚡ **100% Consistente:** Todas las jaulas leídas en top-1 formaron directamente un Cuadrado Latino válido sin requerir modificaciones.
+"""
+            fallback_msg = "⚡ **Lectura directa top-1 consistente**"
 
         metricas_md = f"""
 ### 🧩 KenKen {n}×{n} Resuelto Exitosamente
@@ -71,6 +104,8 @@ def resolver_kenken(image: np.ndarray | None, method: str, render_mode: str):
 | **Conflictos Resueltos** | `{resultado.solve_result.conflicts}` |
 | **Jaulas Detectadas** | `{len(resultado.instance.cages)}` |
 | **Inferencia Conjunta (MAP)** | {fallback_msg} |
+
+{diagnostico_section}
 
 #### Matriz Solución:
 ```text
