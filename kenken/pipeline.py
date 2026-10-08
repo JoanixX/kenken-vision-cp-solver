@@ -7,16 +7,20 @@ Hito 5: modelo CP y visualización                      -> solve_image()
 
 from __future__ import annotations
 
+import argparse
+import time
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import cv2
 import numpy as np
 
 from .cages import detect_cages
 from .grid import detect_grid
-from .instance import Cage, Instance
+from .instance import Cage, Instance, InstanceError
+from .model import SolveResult, solve
 from .ocr import allowed_ops, decode_readings, extract_label_glyphs
-from .preprocessing import RECT_SIZE, find_board, rectify
+from .preprocessing import RECT_SIZE, find_board, load_image, rectify
 
 
 @dataclass
@@ -87,3 +91,89 @@ def read_instance(st: Structure, k: int = 5, model=None, alternatives: bool = Tr
     st.debug["unread"] = unread
     st.debug["glyph_log_probs"] = main_lp
     return Instance(st.n, cages, candidates)
+
+
+# ============================================================ hito 5: de la foto a la solución
+@dataclass
+class ImageResult:
+    status: str                        # solved / infeasible / invalid_instance / no_board / ...
+    structure: Structure | None = None
+    instance: Instance | None = None
+    solve: SolveResult | None = None
+    solution: list | None = None
+    overlay: np.ndarray | None = None  # foto original con la solución dibujada
+    corrected: set = field(default_factory=set)   # jaulas cuya lectura cambió el solver (hito 6)
+    times: dict = field(default_factory=dict)     # segundos por etapa
+    message: str = ""
+
+    @property
+    def solved(self) -> bool:
+        return self.solution is not None
+
+
+def solve_image(image, k: int = 5, time_limit: float = 30.0) -> ImageResult:
+    """Imagen (ruta o arreglo BGR) -> solución, sin intervención manual.
+
+    Etapas: tablero y jaulas (visión clásica) -> etiquetas (CNN) -> instancia
+    validada -> modelo CP-SAT -> solución dibujada sobre la foto original.
+    """
+    from .visualize import overlay_solution  # import local: matplotlib solo si se usa
+
+    img = load_image(image) if isinstance(image, (str, Path)) else image
+    times = {}
+
+    t = time.perf_counter()
+    try:
+        st = extract_structure(img)
+    except ValueError as e:
+        return ImageResult("no_board", message=str(e), times={"structure": time.perf_counter() - t})
+    times["structure"] = time.perf_counter() - t
+
+    t = time.perf_counter()
+    inst = read_instance(st, k=k)
+    times["ocr"] = time.perf_counter() - t
+    res = ImageResult("read", structure=st, instance=inst, times=times)
+
+    try:
+        inst.validate()
+    except InstanceError as e:
+        res.status, res.message = "invalid_instance", str(e)
+        return res
+
+    t = time.perf_counter()
+    res.solve = solve(inst, time_limit=time_limit)
+    times["solve"] = time.perf_counter() - t
+    if not res.solve.solved:
+        res.status = res.solve.status.lower()  # 'infeasible' (o 'unknown' si se acabó el tiempo)
+        res.message = "las lecturas más probables no tienen solución"
+        return res
+
+    t = time.perf_counter()
+    res.solution = res.solve.grid
+    res.overlay = overlay_solution(img, st, res.solution)
+    times["render"] = time.perf_counter() - t
+    res.status = "solved"
+    return res
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser(description="Resuelve un KenKen desde una foto.")
+    ap.add_argument("image")
+    ap.add_argument("--out", help="figura resumen (png); por defecto <imagen>_solucion.png")
+    a = ap.parse_args()
+
+    import matplotlib
+    matplotlib.use("Agg")
+    from .model import format_grid
+    from .visualize import plot_result
+
+    r = solve_image(a.image)
+    print(f"estado: {r.status}  {r.message}")
+    if r.instance is not None:
+        print(r.instance)
+    if r.solved:
+        print(format_grid(r.solution))
+    print("tiempos: " + ", ".join(f"{k}={v:.3f}s" for k, v in r.times.items()))
+    out = a.out or str(Path(a.image).with_name(Path(a.image).stem + "_solucion.png"))
+    plot_result(load_image(a.image), r, out)
+    print("figura:", out)
