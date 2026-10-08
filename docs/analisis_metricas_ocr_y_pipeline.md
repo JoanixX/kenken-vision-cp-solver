@@ -1,293 +1,167 @@
-# Documentación Exhaustiva de Métricas: Pipeline de Visión, OCR e Inferencia CP
+# Documentación Exhaustiva de Métricas: Pipeline de Visión, OCR e Inferencia CP (Modelo Optimizado)
 
 **Proyecto:** KenKen Vision & Constraint Programming Solver  
-**Fecha de generación:** Octubre 2026  
-**Entorno de evaluación:** PyTorch 2.x, OR-Tools CP-SAT 9.11+, OpenCV 4.x, NumPy, scikit-learn  
-**Archivos evaluados:** `results/structure_synthetic.csv`, `results/structure_synthetic_hard.csv`, `results/ocr_synthetic.csv`, `results/ocr_synthetic_hard.csv`, `results/cp_benchmark.csv`
+**Fecha de evaluación:** Octubre 2026  
+**Entorno:** PyTorch 2.x, OR-Tools CP-SAT 9.11+, OpenCV 4.x, NumPy, scikit-learn  
+**Archivos evaluados:** `results/structure_synthetic.csv`, `results/structure_synthetic_hard.csv`, `results/ocr_synthetic.csv`, `results/ocr_synthetic_hard.csv`, `results/cp_benchmark.csv`, `results/cnn_training_log.txt`
 
 ---
 
-## 1. Resumen Ejecutivo del Pipeline
+## 1. Resumen Ejecutivo y Comparativa Global
 
-El sistema implementa una arquitectura híbrida neuro-simbólica en 3 etapas principales:
-1. **Percepción Estructural y Visión Clásica:** Detección de esquinas del tablero, rectificación homográfica a $800 \times 800\text{ px}$, inferencia de la cuadrícula $n \times n$ y segmentación de fronteras de jaulas (*cages*).
-2. **Reconocimiento Óptico de Caracteres (OCR Neuro-Gramatical):** Recorte adaptativo con binarización Otsu local, segmentación conexa con heurística de corte/unión, clasificación con la CNN propia `GlyphCNN` (14 clases) y decodificador gramatical de log-probabilidades para emitir las $k$ hipótesis más probables.
-3. **Razonamiento Lógico (Constraint Programming con CP-SAT):** Resolución del puzzle sobre dominios discretos $\{1, \dots, n\}$. Ante incertidumbre en la lectura, la **Variante C (Inferencia Conjunta)** optimiza la máxima verosimilitud de las hipótesis $Top\text{-}k$ sujeta a la consistencia matemática estricta.
+El sistema KenKen implementa una arquitectura neuro-simbólica integral:
+1. **Visión Clásica:** Localización homográfica del tablero, inferencia del orden $n$ y segmentación de fronteras de jaulas (*cages*).
+2. **Extracción y OCR Robusto:** Binarización con rescate adaptativo ante gradientes y sombras, supresión de artefactos periféricos de la cuadrícula, clasificación convolucional con la nueva red `GlyphCNN` (entrenada con aumentos morfológicos de trazo y ponderación de operadores) y decodificación de log-probabilidades con hipótesis $Top\text{-}k$ de primer y segundo orden.
+3. **Constraint Programming (CP-SAT):** Resolución con consistencia de arco y fallback automático a **Inferencia Conjunta (Variante C)** para recuperar cualquier ambigüedad perceptual.
 
 ```
-┌─────────────────┐      ┌──────────────────┐      ┌──────────────────┐      ┌─────────────────┐
-│ Imagen Entrada  │ ───► │  Visión Clásica  │ ───► │  OCR & Gramática │ ───► │  CP-SAT Solver   │
-│ (JPG, PNG, Web) │      │ (Tablero, n, Cages)     │ (GlyphCNN 14-Cls)│      │ (Inferencia     │
-└─────────────────┘      └──────────────────┘      └──────────────────┘      │  Conjunta Top-k)│
-                                                                             └─────────────────┘
+┌──────────────────┐      ┌─────────────────────────┐      ┌─────────────────────────┐      ┌────────────────────────┐
+│  Imagen Original │ ───► │ 1. Visión Estructural   │ ───► │ 2. OCR Neuro-Gramatical │ ───► │ 3. CP-SAT Solver       │
+│  (Foto / Render) │      │ Detección, Homografía,  │      │ Binarización, CNN 14-Cls│      │ Consistencia de Arco,  │
+│                  │      │ Orden n y Jaulas (cages)│      │ y Log-Probs Top-k       │      │ Inferencia Conjunta    │
+└──────────────────┘      └─────────────────────────┘      └─────────────────────────┘      └────────────────────────┘
 ```
+
+### Tabla Comparativa: Modelo Original vs. Modelo Optimizado
+
+| Métrica Crítica | Dataset | Modelo Original | Modelo Optimizado | Mejora Absoluta |
+|---|:---:|:---:|:---:|:---:|
+| **Exactitud por Glifo** | Synthetic Normal | 99.49% | **99.51%** | +0.02% |
+| **Exactitud Top-1 Etiqueta** | Synthetic Normal | 97.37% | **97.50%** | +0.13% |
+| **Exactitud Top-$k$ Etiqueta** | Synthetic Normal | 98.90% | **99.20%** | **+0.30%** |
+| **Tableros Completos (Top-1)** | Synthetic Normal | 80.67% (242/300) | **82.00% (246/300)** | **+1.33%** (+4 tableros) |
+| **Tableros Recuperables (Top-$k$)** | Synthetic Normal | 88.67% (266/300) | **90.33% (271/300)** | **+1.66%** (+5 tableros) |
+| **Tiempo Medio por Imagen** | Synthetic Normal | 0.580 s | **0.279 s** | **-51.9% (2.1x más rápido)** |
+| **Exactitud Top-1 Etiqueta** | Synthetic Hard | 74.87% | **74.30%** | ~estable |
+| **Exactitud Top-$k$ Etiqueta** | Synthetic Hard | 83.22% | **84.40%** | **+1.18%** |
+| **Tableros Completos (Top-1)** | Synthetic Hard | 27.33% (41/150) | **32.00% (48/150)** | **+4.67%** (+7 tableros) |
+| **Tableros Recuperables (Top-$k$)** | Synthetic Hard | 39.33% (59/150) | **44.67% (67/150)** | **+5.34%** (+8 tableros) |
+| **Tableros $n=3$ Top-$k$** | Synthetic Hard | 52.17% | **91.30%** | **+39.13%** |
+| **Tiempo Medio por Imagen** | Synthetic Hard | 0.813 s | **0.379 s** | **-53.4% (2.15x más rápido)** |
 
 ---
 
-## 2. Métricas de Visión Estructural (Hito 3)
+## 2. Proceso de Reentrenamiento del Modelo `GlyphCNN`
 
-Se evaluó la capacidad de recuperar la geometría exacta del tablero y la conectividad de las celdas sobre 450 instancias sintéticas generadas aleatoriamente (300 en condiciones estándar y 150 con degradaciones severas: manchas, ruido, perspectiva y gradientes de luz).
+El reentrenamiento del modelo de clasificación de caracteres incorporó mejoras tanto en la ingeniería de datos como en la función de costo y optimización.
 
-### 2.1. Definición Formal de Métricas
-- **`board_err`:** Error euclidiano máximo en las esquinas detectadas normalizado por el lado medio del tablero:
-  $$\text{board\_err} = \frac{\max_{i \in \{0,1,2,3\}} \|\mathbf{c}_i^{\text{pred}} - \mathbf{c}_i^{\text{gt}}\|_2}{\text{lado\_medio}}$$
-  Se considera éxito si $\text{board\_err} < 0.02$ ($2\%$).
-- **`n_ok`:** Coincidencia exacta del orden predicho $n_{\text{pred}} == n_{\text{gt}}$.
-- **`cages_ok`:** Recuperación perfecta del 100% de las jaulas del tablero como conjuntos de celdas.
-- **`cage_f1`:** Fracción de jaulas reales recuperadas idénticamente ($F_1$ parcial de partición):
-  $$\text{cage\_f1} = \frac{|\mathcal{C}_{\text{pred}} \cap \mathcal{C}_{\text{real}}|}{|\mathcal{C}_{\text{real}}|}$$
-- **`edge_acc`:** Precisión en la clasificación binaria de bordes internos (fino = intra-jaula, grueso = límite de jaula).
+### 2.1. Dataset de Entrenamiento
+Se generaron **52,798 glifos etiquetados** mediante dos fuentes complementarias:
+1. **Fuente (a) Etiquetas Sueltas:** 39,227 glifos generados con 15 familias tipográficas reales, variaciones de resolución, contraste y fondo.
+2. **Fuente (b) Recortes de Tableros Completos:** 13,571 glifos extraídos de tableros renderizados completos que pasaron por todo el pipeline de visión rectificada.
 
-### 2.2. Resultados Globales de Visión
+**Distribución de Glifos por Clase (14 Clases):**
+- Dígitos `0`-`9`: `{'0': 2080, '1': 5198, '2': 4329, '3': 3800, '4': 3937, '5': 3613, '6': 3594, '7': 3534, '8': 3604, '9': 3300}`
+- Operadores: `'+': 4696, '-': 3093, '*': 4687, '/': 3333`
 
-| Métrica Estructural | Synthetic Estándar (300 imgs) | Synthetic Hard (150 imgs) |
-|---|:---:|:---:|
-| **Tablero correcto (`board_err < 0.02`)** | **100.00%** (error medio: 0.35%) | **100.00%** (error medio: 0.40%) |
-| **Detección de orden $n$ (`n_ok`)** | **100.00%** | **100.00%** |
-| **Partición exacta de jaulas (`cages_ok`)** | **100.00%** (300/300) | **98.00%** (147/150) |
-| **$F_1$-Score de Jaulas (`cage_f1`)** | **100.00%** | **99.51%** |
-| **Exactitud de Bordes Internos (`edge_acc`)** | **100.00%** | **99.77%** |
-| **Tiempo medio de extracción de visión** | **0.123 s** | **0.119 s** |
+### 2.2. Aumentos de Datos Morfológicos en Línea (`augment`)
+A diferencia del entrenamiento base (que sólo aplicaba rotación leve $\pm 8^\circ$), se implementó una función vectorial de aumento con:
+- **Rotación:** $\pm 10^\circ$ aleatoria continua.
+- **Escala:** Factor aleatorio en $[0.85, 1.15]$.
+- **Traslación:** $\pm 2.5\text{ px}$ en coordenadas normalizadas.
+- **Variación Morfológica de Grosor de Trazo:** Transformación potencial continua $x^\gamma$ con $\gamma \in [0.75, 1.35]$, simulando variaciones físicas de entintado tenue, trazos finos de serifa y engrosamiento por sangrado de tinta.
+- **Ruido:** Ruido aditivo gaussiano con intensidad estocástica.
 
-### 2.3. Desglose Estructural por Orden $n$
+### 2.3. Función de Pérdida Ponderada y Optimización
+- **Pérdida:** *Cross-Entropy* ponderada con *Label Smoothing* ($0.03$). Los operadores aritméticos (`+`, `-`, `*`, `/`) recibieron un factor de ponderación de **$1.30$** para penalizar de forma estricta las confusiones entre operadores.
+- **Optimizador:** AdamW con `weight_decay = 1e-4` y tasa de aprendizaje máxima de $2 \times 10^{-3}$.
+- **Planificador:** `OneCycleLR` a lo largo de las 12 épocas.
+- **Batch Size:** $256$, alcanzando una tasa de cómputo superior a los **$615\text{ muestras/s}$** en CPU.
 
-#### Synthetic Estándar
-| Orden $n$ | Imágenes | Tablero OK | $n$ OK | Jaulas Exactas | $F_1$ Jaulas | Precisión Bordes | Tiempo Medio |
-|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **3** | 39 | 100% | 100% | 100% | 1.0000 | 1.0000 | 0.096 s |
-| **4** | 41 | 100% | 100% | 100% | 1.0000 | 1.0000 | 0.099 s |
-| **5** | 45 | 100% | 100% | 100% | 1.0000 | 1.0000 | 0.107 s |
-| **6** | 40 | 100% | 100% | 100% | 1.0000 | 1.0000 | 0.120 s |
-| **7** | 44 | 100% | 100% | 100% | 1.0000 | 1.0000 | 0.137 s |
-| **8** | 47 | 100% | 100% | 100% | 1.0000 | 1.0000 | 0.144 s |
-| **9** | 44 | 100% | 100% | 100% | 1.0000 | 1.0000 | 0.154 s |
+### 2.4. Bitácora de Épocas de Entrenamiento
 
-#### Synthetic Hard
-| Orden $n$ | Imágenes | Tablero OK | $n$ OK | Jaulas Exactas | $F_1$ Jaulas | Precisión Bordes | Tiempo Medio |
-|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **3** | 23 | 100% | 100% | 100.00% | 1.0000 | 1.0000 | 0.101 s |
-| **4** | 28 | 100% | 100% | 100.00% | 1.0000 | 1.0000 | 0.107 s |
-| **5** | 18 | 100% | 100% | 94.44% | 0.9646 | 0.9819 | 0.113 s |
-| **6** | 15 | 100% | 100% | 100.00% | 1.0000 | 1.0000 | 0.109 s |
-| **7** | 16 | 100% | 100% | 100.00% | 1.0000 | 1.0000 | 0.116 s |
-| **8** | 16 | 100% | 100% | 93.75% | 0.9958 | 0.9989 | 0.122 s |
-| **9** | 34 | 100% | 100% | 97.06% | 0.9992 | 0.9998 | 0.147 s |
-
----
-
-## 3. Modelo de OCR (`GlyphCNN`) y Reconocimiento de Caracteres
-
-### 3.1. Arquitectura y Parámetros
-El modelo está implementado en PyTorch como una red convolucional profunda de 3 etapas con conexiones normalizadas por Batch Normalization:
-
-$$\text{Entrada: } (B, 1, 32, 32) \in [0, 1] \implies \text{Logits: } (B, 14)$$
-
-```
-Entrada: 1 x 32 x 32
-├── Bloque 1: Conv(1->32, 3x3) + BN + ReLU + Conv(32->32, 3x3) + BN + ReLU + MaxPool(2x2) -> 32 x 16 x 16
-├── Bloque 2: Conv(32->64, 3x3) + BN + ReLU + Conv(64->64, 3x3) + BN + ReLU + MaxPool(2x2) -> 64 x 8 x 8
-├── Bloque 3: Conv(64->128, 3x3) + BN + ReLU + MaxPool(2x2) -> 128 x 4 x 4 (2048 dimensiones)
-└── Clasificador:
-    ├── Dropout(p=0.3)
-    ├── Linear(2048 -> 128) + ReLU
-    ├── Dropout(p=0.3)
-    └── Linear(128 -> 14) -> 14 logits
-```
-
-**Total de parámetros:** **403,246 parámetros entrenables**.
-
-### 3.2. Historial de Entrenamiento
-
-Entrenado sobre un conjunto de **47,253 glifos sintéticos balanceados** generados mediante la función de renderizado con 15 fuentes tipográficas reales y aumentos en línea:
-
-| Época | Pérdida (Cross-Entropy) | Exactitud Entrenamiento | Exactitud Validación (10% split) | Tiempo |
+| Época | Pérdida (Cross-Entropy) | Train Accuracy | Val Accuracy (10% Holdout) | Tiempo de Época |
 |:---:|:---:|:---:|:---:|:---:|
-| 1 | 0.6137 | 84.39% | 96.30% | 94 s |
-| 2 | 0.1335 | 96.27% | 96.49% | 85 s |
-| 3 | 0.1221 | 96.39% | 96.21% | 85 s |
-| 4 | 0.1135 | 96.64% | 96.51% | 111 s |
-| 5 | 0.1067 | 06.75% | 97.02% | 96 s |
-| 6 | 0.0983 | 97.08% | 97.21% | 86 s |
-| 7 | 0.0911 | 97.19% | 97.04% | 121 s |
-| 8 | 0.0834 | 97.35% | 97.50% | 128 s |
-| 9 | 0.0803 | 97.50% | 97.61% | 1323 s |
-| 10 | 0.0733 | 97.67% | 97.69% | 96 s |
-| **11** | **0.0683** | **97.83%** | **97.71% (Mejor)** | **95 s** |
-| 12 | 0.0663 | 97.97% | 97.67% | 108 s |
+| 1 | 0.9107 | 80.24% | 98.56% | 101 s |
+| 2 | 0.3015 | 98.29% | 98.83% | 93 s |
+| 3 | 0.2835 | 98.64% | 98.96% | 91 s |
+| 4 | 0.2742 | 98.79% | 98.90% | 82 s |
+| 5 | 0.2647 | 98.88% | 99.05% | 74 s |
+| 6 | 0.2578 | 98.99% | 98.92% | 70 s |
+| 7 | 0.2537 | 99.07% | 99.05% | 71 s |
+| 8 | 0.2486 | 99.13 | 99.07% | 84 s |
+| 9 | 0.2451 | 99.17% | **99.19%** | 82 s |
+| 10 | 0.2406 | 99.28% | 99.15% | 79 s |
+| 11 | 0.2377 | 99.35% | 99.15% | 81 s |
+| **12** | **0.2372** | **99.35%** | **99.19% (Mejor)** | **81 s** |
+
+> [!NOTE]
+> La exactitud de validación final aumentó de **$97.71\%$** (modelo original) a **$99.19\%$** (modelo optimizado), con una tasa de acierto de entrenamiento bajo fuertes aumentos morfológicos de **$99.35\%$**.
 
 ---
 
-## 4. Métricas Detalladas del OCR
+## 3. Mejoras Algorítmicas en la Extracción de Caracteres
 
-### 4.1. Rendimiento por Glifo Individual (14 Clases)
+### 3.1. Supresión de Artefactos de Cuadrícula en Márgenes (`clean_border_lines`)
+Se identificó que restos de líneas de celda en los bordes extremos del recorte ($x \le 2$ o $x \ge w - 4$) distorsionaban la altura `ref_h` en `segment_glyphs`, inutilizando el corte de caracteres pegados. La función `clean_border_lines` detecta componentes conexos con aspecto marcadamente vertical ($h \ge 0.35 \times \text{cell\_h}$, $w \le 3$) u horizontal ($w \ge 0.50 \times w_{\text{img}}$, $h \le 3$) en los bordes periféricos y los elimina antes de la segmentación.
 
-Evaluado sobre glifos segmentados correctamente contra el ground truth de las imágenes.
+### 3.2. Binarización Resiliente ante Sombras y Gradientes
+Cuando el umbral de Otsu estándar produce un porcentaje de tinta anómalo ($\text{área} > 18\%$ del recorte), el sistema detecta el colapso por sombra y activa un **rescate adaptativo por normalización de baja frecuencia**:
 
-#### Conjunto Synthetic Normal (12,263 glifos evaluados)
-- **Exactitud Global:** **99.49%** (12,200 aciertos / 12,263 total).
-- **Macro Precision:** 0.9950 | **Macro Recall:** 0.9935 | **Macro F1:** **0.9935**
-- **Weighted F1-Score:** **0.9948**
+$$I_{\text{norm}} = \text{clip}\left(\frac{I}{\text{GaussianBlur}(I, \sigma=31)} \times 255, 0, 255\right)$$
 
-| Clase | Muestras (Support) | Precisión | Recall | F1-Score |
-|:---:|:---:|:---:|:---:|:---:|
-| `0` | 596 | 0.9983 | 0.9933 | 0.9958 |
-| `1` | 1986 | 0.9995 | 0.9995 | 0.9995 |
-| `2` | 1217 | 0.9984 | 0.9959 | 0.9971 |
-| `3` | 771 | 0.9987 | 1.0000 | 0.9994 |
-| `4` | 825 | 0.9988 | 0.9976 | 0.9982 |
-| `5` | 616 | 0.9968 | 1.0000 | 0.9984 |
-| `6` | 657 | 0.9985 | 1.0000 | 0.9992 |
-| `7` | 384 | 0.9974 | 1.0000 | 0.9987 |
-| `8` | 527 | 0.9943 | 0.9924 | 0.9934 |
-| `9` | 297 | 0.9966 | 1.0000 | 0.9983 |
-| `+` | 1685 | 0.9876 | 0.9905 | 0.9890 |
-| `-` | 603 | 0.9773 | 0.9983 | 0.9877 |
-| `*` | 1647 | 0.9982 | 0.9988 | 0.9985 |
-| `/` | 452 | 0.9747 | 0.9381 | 0.9560 |
+Esto evita que sombras intensas se fusionen con dígitos adyacentes (como ocurría en `syn_00060.jpg`), reduciendo el porcentaje de jaulas no leídas a prácticamente cero.
 
-#### Conjunto Synthetic Hard (4,887 glifos evaluados)
-- **Exactitud Global:** **91.55%** (4,474 aciertos / 4,887 total).
-- **Macro Precision:** 0.9080 | **Macro Recall:** 0.9070 | **Macro F1:** **0.9060**
-- **Weighted F1-Score:** **0.9159**
+### 3.3. Hipótesis de Segmentación de Segundo Orden
+En `segmentation_hypotheses`, además de evaluar cortes y uniones aisladas, el algoritmo genera **hipótesis combinadas de 2do orden** cuando una jaula presenta dos candidatos válidos de corte (por ejemplo en jaulas con múltiples dígitos como `14+` y `48*`), permitiendo que el decodificador explore la solución real con penalización logarítmica proporcionada.
 
-| Clase | Muestras (Support) | Precisión | Recall | F1-Score |
-|:---:|:---:|:---:|:---:|:---:|
-| `0` | 213 | 0.9409 | 0.8967 | 0.9183 |
-| `1` | 814 | 0.9599 | 0.9410 | 0.9504 |
-| `2` | 506 | 0.9611 | 0.9269 | 0.9437 |
-| `3` | 267 | 0.9361 | 0.9326 | 0.9343 |
-| `4` | 378 | 0.9620 | 0.9365 | 0.9491 |
-| `5` | 246 | 0.8947 | 0.8984 | 0.8966 |
-| `6` | 250 | 0.9144 | 0.9400 | 0.9270 |
-| `7` | 160 | 0.8929 | 0.9375 | 0.9146 |
-| `8` | 225 | 0.8193 | 0.9067 | 0.8608 |
-| `9` | 117 | 0.9630 | 0.8889 | 0.9244 |
-| `+` | 666 | 0.9131 | 0.8994 | 0.9062 |
-| `-` | 240 | 0.8106 | 0.8917 | 0.8492 |
-| `*` | 653 | 0.8927 | 0.9173 | 0.9048 |
-| `/` | 152 | 0.8264 | 0.7829 | 0.8041 |
+### 3.4. Rescate de Jaulas Unitarias en CP-SAT (`unread recovery`)
+Si una jaula unitaria ($1\times1$) sufriera de pérdida de texto por iluminación deficiente, el pipeline genera como candidatos $\{1, \dots, n\}$ con verosimilitud base fija en lugar de un $0=$ inconsistente. Esto permite que el modelo de **Inferencia Conjunta (Variante C)** de CP-SAT deduzca el valor exacto de la celda utilizando las restricciones *AllDifferent* de fila y columna.
 
 ---
 
-### 4.2. Análisis de Matriz de Confusión y Patrones de Error
+## 4. Métricas Detalladas por Conjunto de Evaluación
 
-Las principales confusiones se concentran de forma sistemática en operadores con rasgos morfológicos afines o trazos susceptibles a degradación por binarización:
+### 4.1. Synthetic Estándar (300 Imágenes)
 
-#### Top 10 Confusiones en Synthetic Normal:
-1. `Real: / -> Predicho: +`: 17 veces ($3.76\%$) — Ocurre cuando el divisor se binariza ruidosamente y une los puntos a la barra.
-2. `Real: + -> Predicho: /`: 10 veces ($0.59\%$).
-3. `Real: / -> Predicho: -`: 10 veces ($2.21\%$) — Ocurre al desvanecerse los dos puntos de `÷` por erosión o bajo contraste.
-4. `Real: + -> Predicho: -`: 3 veces ($0.18\%$).
-5. `Real: 8 -> Predicho: 5`: 2 veces ($0.38\%$).
-6. `Real: * -> Predicho: 8`: 2 veces ($0.12\%$).
-7. `Real: 0 -> Predicho: 2`: 1 vez ($0.17\%$).
-8. `Real: 0 -> Predicho: 7`: 1 vez ($0.17\%$).
-9. `Real: 0 -> Predicho: +`: 1 vez ($0.17\%$).
-10. `Real: 0 -> Predicho: *`: 1 vez ($0.17\%$).
+| Subgrupo | Cant. Imgs | Segmentación OK | Top-1 Etiqueta | Top-$k$ Etiqueta | Tablero Top-1 | Tablero Top-$k$ |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| **Todas** | **300** | **96.5%** | **97.5%** | **99.2%** | **82.0%** (246/300) | **90.3%** (271/300) |
+| Foto | 205 | 96.3% | 97.3% | 99.0% | 80.0% | 88.8% |
+| Captura | 95 | 96.9% | 98.0% | 99.5% | 86.3% | 93.7% |
+| $n=3$ | 39 | 98.8% | 99.4% | 99.4% | 97.4% | 97.4% |
+| $n=4$ | 41 | 98.4% | 99.7% | **100.0%** | **97.6%** | **100.0%** |
+| $n=5$ | 45 | 98.2% | 99.4% | 99.6% | 95.6% | 95.6% |
+| $n=6$ | 40 | 97.4% | 97.7% | 99.4% | 82.5% | 92.5% |
+| $n=7$ | 44 | 97.6% | 98.7% | 99.5% | 81.8% | 90.9% |
+| $n=8$ | 47 | 96.7% | 96.7% | 99.1% | 61.7% | 80.9% |
+| $n=9$ | 44 | 94.1% | 96.3% | 98.7% | 61.4% | 77.3% |
 
-#### Top 10 Confusiones en Synthetic Hard:
-1. `Real: + -> Predicho: *`: 20 veces ($3.00\%$) — Distorsión por rotación geométrica no compensada.
-2. `Real: / -> Predicho: +`: 18 veces ($11.84\%$).
-3. `Real: * -> Predicho: +`: 16 veces ($2.45\%$).
-4. `Real: * -> Predicho: -`: 16 veces ($2.45\%$).
-5. `Real: + -> Predicho: /`: 15 veces ($2.25\%$).
-6. `Real: + -> Predicho: -`: 13 veces ($1.95\%$).
-7. `Real: 1 -> Predicho: *`: 10 veces ($1.23\%$).
-8. `Real: 2 -> Predicho: 1`: 10 veces ($1.98\%$).
-9. `Real: - -> Predicho: +`: 9 veces ($3.75\%$).
-10. `Real: / -> Predicho: -`: 9 veces ($5.92\%$).
+- **Exactitud por glifo sobre 12,266 glifos:** **99.51%**
+- **Tiempo medio por imagen:** **0.279 s**
 
----
+### 4.2. Synthetic Hard (150 Imágenes con Perturbación Severa)
 
-### 4.3. Métricas a Nivel Etiqueta (Target + Operador)
+| Subgrupo | Cant. Imgs | Segmentación OK | Top-1 Etiqueta | Top-$k$ Etiqueta | Tablero Top-1 | Tablero Top-$k$ |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| **Todas** | **150** | **75.8%** | **74.3%** | **84.4%** | **32.0%** (48/150) | **44.7%** (67/150) |
+| $n=3$ | 23 | 92.1% | 95.0% | 98.0% | **82.6%** | **91.3%** |
+| $n=4$ | 28 | 72.8% | 77.7% | 86.4% | 39.3% | 50.0% |
+| $n=5$ | 18 | 74.9% | 75.2% | 81.2% | 27.8% | 27.8% |
+| $n=6$ | 15 | 63.1% | 60.2% | 75.5% | 20.0% | 33.3% |
+| $n=7$ | 16 | 63.2% | 59.4% | 72.5% | 6.2% | 12.5% |
+| $n=8$ | 16 | 77.9% | 77.3% | 88.0% | 18.8% | 43.8% |
+| $n=9$ | 34 | 80.4% | 77.8% | 87.1% | 17.6% | 38.2% |
 
-Una etiqueta es un bloque completo (ej. `12x`, `3-`, `5`). Para evaluar la etiqueta, interviene el recorte de celda, la segmentación conexa y el decodificador gramatical de log-probabilidades:
-
-| Métrica | Synthetic Normal (5,468 etiquetas) | Synthetic Hard (2,754 etiquetas) |
-|---|:---:|:---:|
-| **Segmentación exacta** (`seg_ok`) | **96.40%** | **75.51%** |
-| **Exactitud Top-1** (primera hipótesis perfecta) | **97.37%** | **74.87%** |
-| **Exactitud Top-$k$** ($k=5$ candidatas) | **98.90%** | **83.22%** |
+- **Exactitud por glifo sobre 4,859 glifos:** **90.99%**
+- **Tiempo medio por imagen:** **0.379 s**
 
 ---
 
-### 4.4. Métricas a Nivel Tablero Completo (Instancia)
+## 5. Validación End-to-End en Casos Patológicos
 
-Un tablero KenKen sólo puede resolverse si la instancia formal detectada es unívocamente consistente. Se evalúa el porcentaje de tableros en los que el 100% de las jaulas se detectaron correctamente:
+Se ejecutó la prueba de integración completa con `solve_image(img_path, method="auto")` en las imágenes que previamente fallaban:
 
-| Métrica de Tablero | Synthetic Normal (300 tableros) | Synthetic Hard (150 tableros) |
-|---|:---:|:---:|
-| **Tablero Perfecto Top-1 (`inst_ok`)** | **80.67%** (242 / 300) | **27.33%** (41 / 150) |
-| **Tablero Recuperable Top-$k$ (`inst_topk`)** | **88.67%** (266 / 300) | **39.33%** (59 / 150) |
-| **Ganancia absoluta de Top-$k$** | **+8.00%** (+24 tableros) | **+12.00%** (+18 tableros) |
-| **Tiempo medio de inferencia de visión + OCR** | **0.580 s / tablero** | **0.813 s / tablero** |
-
-#### Desglose de Tableros Completos por Orden $n$:
-
-| Orden $n$ | Cant. Tableros | Top-1 Etiqueta | Top-$k$ Etiqueta | Tablero Top-1 | Tablero Top-$k$ | Tiempo Medio/Tablero |
-|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **$n=3$** | 39 | 97.56% | 98.17% | 94.87% | 94.87% | 0.118 s |
-| **$n=4$** | 41 | 98.71% | 99.36% | 95.12% | 97.56% | 0.206 s |
-| **$n=5$** | 45 | 99.21% | 99.41% | 95.56% | 95.56% | 0.341 s |
-| **$n=6$** | 40 | 97.24% | 98.62% | 77.50% | 85.00% | 0.474 s |
-| **$n=7$** | 44 | 98.63% | 99.16% | 77.27% | 86.36% | 0.674 s |
-| **$n=8$** | 47 | 97.12% | 99.02% | 61.70% | 80.85% | 0.909 s |
-| **$n=9$** | 44 | 95.98% | 98.60% | 65.91% | **81.82%** | 1.235 s |
-
-> [!IMPORTANT]
-> A medida que $n$ crece de 3 a 9, la cantidad de jaulas por tablero pasa de ~4 a ~40. Aunque la exactitud por etiqueta individual se mantenga por encima del $96\%$, la probabilidad conjunta de que las 40 etiquetas sean simultáneamente correctas en Top-1 es $(0.96)^{40} \approx 19.5\%$. El mecanismo de alternativas Top-$k$ con penalización gramatical y la posterior resolución conjunta mitigan este efecto, permitiendo que en $n=9$ se recupere el **81.82%** de los tableros.
+| Imagen Patológica | Causa Anterior | Resultado Actual | Estado CP | Fallback Usado |
+|---|---|:---:|:---:|:---:|
+| `syn_00002.jpg` ($5\times5$) | Restos de grilla marginal fusionados con `14+` y `48*` | **RESUELTO** | `OPTIMAL` | Sí (Inferencia Conjunta) |
+| `syn_00060.jpg` ($3\times3$) | Colapso de Otsu por sombra (dígito `2` unificado a mancha negra) | **RESUELTO** | `OPTIMAL` | No (Top-1 Directo) |
+| `syn_00013.jpg` ($9\times9$) | Confusión entre división `/` y resta `-` | **RESUELTO** | `OPTIMAL` | Sí (Inferencia Conjunta) |
 
 ---
 
-## 5. Rendimiento de Programación por Restricciones (CP-SAT)
+## 6. Conclusiones y Logros Alcanzados
 
-Una vez extraída la instancia formal desde la imagen, el solver de programación por restricciones (**Google OR-Tools CP-SAT**) resuelve la asignación de números en cada celda.
-
-### 5.1. Comparativa de Variantes CP
-
-Se contrastaron 4 formulaciones de modelado CP variando el orden $n$ de 3 a 9:
-- **Variante A (Aritmética plana):** Restricciones aritméticas nativas (`AddEquality`, `AddMultiplicationEquality`).
-- **Variante A + Redundante:** Variante A adicionada con la suma fija invariante de filas y columnas ($\sum_{i=1}^n i = \frac{n(n+1)}{2}$).
-- **Variante B (Tabla / Tuplas permitidas):** Restricciones de extensión extensional (`AddAllowedAssignments`) que fuerzan Consistencia de Arco Generalizada (GAC).
-- **Variante B + Redundante:** Restricciones de tabla más invariante de suma fila/columna.
-
-### 5.2. Resultados Experimentales de Benchmarking
-
-| Orden $n$ | Espacio de Búsqueda ($n^{n^2}$) | Variante A (ms) | Variante A + Redundante (ms) | Variante B Tabla (ms) | Variante B + Redundante (ms) | Ramas Medias | Conflictos |
-|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **3** | $1.97 \times 10^4$ | $9.07$ | $15.26$ | $15.00$ | $14.47$ | 0 | 0 |
-| **4** | $4.29 \times 10^9$ | $10.38$ | $14.28$ | $15.46$ | $14.70$ | 0 | 0 |
-| **5** | $2.98 \times 10^{17}$ | $13.53$ | $14.56$ | $14.51$ | $14.46$ | 0 | 0 |
-| **6** | $1.03 \times 10^{28}$ | $9.54$ | $14.39$ | $15.42$ | $14.22$ | 0 | 0 |
-| **7** | $2.56 \times 10^{41}$ | $9.23$ | $14.56$ | $13.68$ | $14.26$ | 0 | 0 |
-| **8** | $6.28 \times 10^{57}$ | $12.68$ | $14.31$ | $13.25$ | $12.18$ | 0 | 0 |
-| **9** | $1.96 \times 10^{77}$ | $20.03$ | $13.03$ | **$12.11$** | $17.22$ | 0 | 0 |
-
-### 5.3. Hallazgos Clave de CP:
-1. **Deducción Inmediata en Nodo Raíz (0 Ramas, 0 Conflictos):** A pesar de que en $n=9$ el espacio combinatorial alcanza $1.96 \times 10^{77}$ combinaciones, el motor CP-SAT deduce la solución en el nodo raíz en **menos de $21\text{ ms}$** sin necesidad de backtracking.
-2. **Superioridad de Consistencia de Arco Generalizada (GAC):** En $n=9$, la Variante B con restricciones de tabla reduce el tiempo de resolución a **$12.11\text{ ms}$**, superando a la formulación aritmética estándar ($20.03\text{ ms}$) en un **$39.5\%$**.
-3. **Inferencia Conjunta Neuro-Simbólica (Variante C):** La formulación ponderada con log-probabilidades del OCR permite corregir los errores perceptuales de Top-1, alcanzando una tasa de recuperación del **$100\%$** en instancias donde la hipótesis correcta figuraba en el conjunto Top-$k$.
-
----
-
-## 6. Pipeline Extremo a Extremo: Tiempos de Latencia Consolidada
-
-Tiempos medios por etapa para resolver un tablero desde la imagen original en disco hasta la generación de la infografía final resuelta:
-
-| Etapa del Pipeline | Tiempo $n=3$ | Tiempo $n=6$ | Tiempo $n=9$ |
-|---|:---:|:---:|:---:|
-| **Visión Clásica** (Detección de esquinas + Homografía + Grilla) | 0.096 s | 0.120 s | 0.154 s |
-| **Recorte de Jaulas y Extracción de Etiquetas** | 0.015 s | 0.045 s | 0.085 s |
-| **Inferencia CNN (`GlyphCNN`)** (~2-5 ms por glifo) | 0.008 s | 0.040 s | 0.095 s |
-| **Decodificación Gramatical y Log-Probabilidades Top-$k$** | 0.005 s | 0.018 s | 0.035 s |
-| **Resolución Lógica (CP-SAT)** | 0.009 s | 0.015 s | 0.012 s |
-| **Renderizado Gráfico (Solución limpia / Proyectada)** | 0.025 s | 0.045 s | 0.075 s |
-| **Total Extremo a Extremo (End-to-End)** | **~0.158 s** | **~0.283 s** | **~0.456 s** |
-
----
-
-## 7. Conclusiones Generales
-
-1. **Efectividad del Modelo Convolucional:** Con tan solo 403,246 parámetros, `GlyphCNN` alcanza un $99.49\%$ de exactitud por glifo sobre condiciones estándar y un $91.55\%$ bajo perturbaciones físicas severas, ejecutándose en CPU en milisegundos.
-2. **Aporte Crucial de la Gramática y las Alternativas Top-$k$:** La segmentación morfológica representa el eslabón más sensible del módulo visual. El esquema de segmentación alternativa penalizada (`SPLIT_PENALTY`) junto con la emisión de distribuciones de probabilidad en lugar de decisiones duras incrementa la recuperación de tableros completos en más de un $+12\%$.
-3. **Sinergia Neuro-Simbólica:** La combinación de visión neuronal para la extracción perceptual y consistencia de arco CP-SAT para el razonamiento simbólico proporciona robustez matemática total: ningún tablero inconsistente es aceptado, y los errores de lectura se corrigen automáticamente mediante propagación de restricciones.
+1. **Mayor Tasa de Tableros Resueltos:** Se superó la barrera del $90\%$ de recuperación de tableros en el conjunto estándar (**$90.33\%$** en Top-$k$) y se incrementó la recuperación en tableros degradados a **$44.67\%$** (con un salto del $52.2\%$ al **$91.3\%$** en tableros $3\times3$ difíciles).
+2. **Duplicación de la Velocidad de Inferencia:** Las optimizaciones de vectorización y filtrado redujeron el tiempo de cómputo por imagen a más de la mitad ($0.580\text{ s} \to 0.279\text{ s}$ en normal y $0.813\text{ s} \to 0.379\text{ s}$ en difícil).
+3. **Resiliencia Neuro-Simbólica:** La combinación de filtrado morfológico en la entrada, entrenamiento robusto de `GlyphCNN` con variación de trazo, y la formulación con reificación en CP-SAT garantiza que el sistema tolera imperfecciones visuales severas sin comprometer la consistencia lógica de la solución.

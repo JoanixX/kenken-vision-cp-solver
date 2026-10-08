@@ -72,6 +72,22 @@ def crop_label(rect: np.ndarray, lines: np.ndarray, xs, ys, cell) -> LabelCrop:
     return label_from_gray(gray, line)
 
 
+def clean_border_lines(binary: np.ndarray, cell_h: float) -> np.ndarray:
+    """Elimina residuos de líneas de celda en los bordes y artefactos periféricos."""
+    out = binary.copy()
+    h_img, w_img = out.shape
+    _, _, stats, _ = cv2.connectedComponentsWithStats(out, connectivity=8)
+    for s in stats[1:]:
+        x, y, w, h = s[cv2.CC_STAT_LEFT], s[cv2.CC_STAT_TOP], s[cv2.CC_STAT_WIDTH], s[cv2.CC_STAT_HEIGHT]
+        # Línea vertical delgada residual de la grilla en el margen derecho o izquierdo
+        if w <= 3 and h >= 0.35 * cell_h and (x >= w_img - 4 or x <= 2):
+            out[y:y+h, x:x+w] = 0
+        # Línea horizontal delgada en el margen superior o inferior
+        elif h <= 3 and w >= 0.50 * w_img and (y <= 2 or y >= h_img - 3):
+            out[y:y+h, x:x+w] = 0
+    return out
+
+
 def label_from_gray(gray: np.ndarray, line: np.ndarray | None = None) -> LabelCrop:
     """Recorte en gris (ya a escala LABEL_H) -> tinta normalizada y binaria.
 
@@ -88,6 +104,20 @@ def label_from_gray(gray: np.ndarray, line: np.ndarray | None = None) -> LabelCr
     binary[line > 0] = 0
     if paper - dark < 25:  # recorte sin contraste: no hay texto
         binary[:] = 0
+
+    # Rescate adaptativo si Otsu colapsó debido a sombras intensas o gradientes (> 18% de tinta)
+    if np.mean(binary > 0) > 0.18:
+        bg = cv2.GaussianBlur(gray, (31, 31), 0)
+        norm_gray = np.clip((gray.astype(np.float32) / np.maximum(bg.astype(np.float32), 1.0)) * 255.0, 0, 255).astype(np.uint8)
+        _, binary_norm = cv2.threshold(norm_gray, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
+        binary_norm[line > 0] = 0
+        if np.mean(binary_norm > 0) < np.mean(binary > 0):
+            binary = binary_norm
+            p_n, d_n = np.percentile(norm_gray, 90), np.percentile(norm_gray, 1)
+            ink = np.clip((p_n - norm_gray.astype(np.float32)) / max(p_n - d_n, 20.0), 0, 1)
+            ink[line > 0] = 0
+
+    binary = clean_border_lines(binary, float(LABEL_H))
     return LabelCrop(gray, ink, binary, float(LABEL_H))
 
 
@@ -149,16 +179,17 @@ def segment_glyphs(binary: np.ndarray, cell_h: float) -> list[tuple[int, int, in
         return []
 
     # La etiqueta es una sola línea de texto: se quitan grupos lejos de la
-    # línea del carácter más alto (p. ej. un número escrito a mano más abajo).
-    tallest = max(groups, key=lambda g: g[3] - g[1])
-    top, bottom = tallest[1], tallest[3]
+    # línea del carácter más probable (mediana/altura de componentes compactos).
+    compact_groups = [g for g in groups if (g[2] - g[0]) < 1.6 * (g[3] - g[1])]
+    ref_group = max(compact_groups or groups, key=lambda g: g[3] - g[1])
+    top, bottom = ref_group[1], ref_group[3]
     h = bottom - top
-    groups = [g for g in groups if g[1] < bottom + 0.2 * h and g[3] > top - 0.2 * h]
+    groups = [g for g in groups if g[1] < bottom + 0.25 * h and g[3] > top - 0.25 * h]
 
     # Separar el texto de lo que esté muy a la derecha (otro objeto en la celda).
     out = [groups[0]]
     for g in groups[1:]:
-        if g[0] - out[-1][2] > 1.2 * h:
+        if g[0] - out[-1][2] > 1.25 * h:
             break
         out.append(g)
 
@@ -190,7 +221,7 @@ SPLIT_PENALTY = 3.0  # costo (en log-prob) de usar una segmentación alternativa
 
 
 def segmentation_hypotheses(binary: np.ndarray, boxes: list, cell_h: float):
-    """Segmentación principal + alternativas con UNA corrección cada una:
+    """Segmentación principal + alternativas con correcciones:
     partir un trozo en dos (dos caracteres pegados, p. ej. '1-') o unir dos
     trozos vecinos (un carácter partido). Devuelve [(cajas, penalización)].
 
@@ -200,7 +231,10 @@ def segmentation_hypotheses(binary: np.ndarray, boxes: list, cell_h: float):
     hyps = [(list(boxes), 0.0)]
     if not boxes:
         return hyps
-    ref_h = max(b[3] - b[1] for b in boxes)
+    compact = [b for b in boxes if (b[2] - b[0]) < 1.6 * (b[3] - b[1])]
+    ref_h = max((b[3] - b[1] for b in (compact or boxes)), default=cell_h * 0.2)
+    
+    split_hyps = []
     for k, (x0, y0, x1, y1) in enumerate(boxes):
         w = x1 - x0
         if w >= 0.45 * ref_h:
@@ -210,13 +244,41 @@ def segmentation_hypotheses(binary: np.ndarray, boxes: list, cell_h: float):
                 cut = x0 + a + int(np.argmin(proj[a:b]))
                 parts = [_tight(binary, [x0, y0, cut, y1]), _tight(binary, [cut, y0, x1, y1])]
                 if all(p is not None for p in parts):
-                    hyps.append((boxes[:k] + [tuple(map(int, p)) for p in parts] + boxes[k + 1:],
-                                 SPLIT_PENALTY))
+                    cand = boxes[:k] + [tuple(map(int, p)) for p in parts] + boxes[k + 1:]
+                    split_hyps.append((k, cand))
+                    hyps.append((cand, SPLIT_PENALTY))
+                    
     for k in range(len(boxes) - 1):
         a, b = boxes[k], boxes[k + 1]
         merged = (min(a[0], b[0]), min(a[1], b[1]), max(a[2], b[2]), max(a[3], b[3]))
         hyps.append((boxes[:k] + [merged] + boxes[k + 2:], SPLIT_PENALTY))
+
+    # Hipótesis combinada si hay 2 cajas que califican para división (p. ej. '14+' y '48*')
+    if len(split_hyps) >= 2:
+        k1, cand1 = split_hyps[0]
+        k2, _ = split_hyps[1]
+        if k1 != k2 and len(boxes) >= 2:
+            combined = []
+            for idx, b in enumerate(boxes):
+                if idx in (k1, k2):
+                    x0, y0, x1, y1 = b
+                    w = x1 - x0
+                    proj = (binary[y0:y1, x0:x1] > 0).sum(axis=0)
+                    a, b_col = int(0.3 * w), int(0.8 * w)
+                    cut = x0 + a + int(np.argmin(proj[a:b_col]))
+                    p1 = _tight(binary, [x0, y0, cut, y1])
+                    p2 = _tight(binary, [cut, y0, x1, y1])
+                    if p1 and p2:
+                        combined.extend([tuple(map(int, p1)), tuple(map(int, p2))])
+                    else:
+                        combined.append(b)
+                else:
+                    combined.append(b)
+            if len(combined) == len(boxes) + 2:
+                hyps.append((combined, SPLIT_PENALTY * 1.8))
+
     return hyps
+
 
 
 def extract_label_glyphs(rect: np.ndarray, xs, ys, cages, lines: np.ndarray | None = None,

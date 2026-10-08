@@ -88,7 +88,14 @@ def read_instance(st: Structure, k: int = 5, model=None, alternatives: bool = Tr
             cages.append(Cage(cells, readings[0]["target"], readings[0]["op"]))
         else:
             unread.append(idx)
-            cages.append(Cage(cells, 0, allowed_ops(len(cells))[0]))
+            if len(cells) == 1:
+                # Jaula de 1 celda no leída: generar los valores 1..n como candidatos con baja logp,
+                # para que la inferencia conjunta CP-SAT la deduzca por AllDifferent en fila y columna
+                fallback_cands = [{"target": v, "op": "=", "logp": -4.0} for v in range(1, st.n + 1)]
+                candidates[idx] = fallback_cands
+                cages.append(Cage(cells, 1, "="))
+            else:
+                cages.append(Cage(cells, 0, allowed_ops(len(cells))[0]))
     st.debug["unread"] = unread
     st.debug["glyph_log_probs"] = main_lp
     return Instance(st.n, cages, candidates)
