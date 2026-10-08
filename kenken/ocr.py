@@ -262,8 +262,9 @@ def decode_readings(log_probs: np.ndarray, cage_size: int, n: int, k: int = 5) -
 
     ops = allowed_ops(cage_size)
     n_digits = len(log_probs) if ops == ["="] else len(log_probs) - 1
-    if n_digits < 1:
-        return []
+    max_target = n ** cage_size  # cota de cualquier operación (el producto es la mayor)
+    if n_digits < 1 or n_digits > len(str(max_target)):
+        return []  # p. ej. ruido segmentado como 15 "caracteres"
 
     # Opciones por posición, ordenadas de más a menos probable: (log-prob, símbolo).
     slots = [sorted(((log_probs[p, d], str(d)) for d in DIGITS if not (p == 0 and d == 0)),
@@ -284,7 +285,7 @@ def decode_readings(log_probs: np.ndarray, cage_size: int, n: int, k: int = 5) -
         symbols = [slots[p][q][1] for p, q in enumerate(idx)]
         op = "=" if ops == ["="] else symbols[-1]
         target = int("".join(symbols if ops == ["="] else symbols[:-1]))
-        if not _cage_errors(Cage(cells, target, op), n):
+        if target <= max_target and not _cage_errors(Cage(cells, target, op), n):
             results.append({"target": target, "op": op, "logp": float(-neg)})
         for p in range(len(slots)):
             if idx[p] + 1 < len(slots[p]):
