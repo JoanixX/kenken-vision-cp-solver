@@ -128,3 +128,78 @@ La implementación cuenta con pruebas exhaustivas en [`tests/test_model.py`](../
 python -m pytest tests/test_model.py -q
 # 27 passed in 0.85s (100% éxito)
 ```
+
+---
+
+## 3. Variante B: Restricción Global de Tabla (`AddAllowedAssignments`)
+
+### 3.1. Formulación Matemática de la Variante B
+
+La Variante B modela el problema KenKen como un CSP extensional en las jaulas:
+
+* **Variables de Decisión:**
+  $$x_{i,j} \in \{1, \dots, n\} \quad \forall i, j \in \{0, \dots, n-1\}$$
+
+* **Restricciones Globales de Cuadrado Latino:**
+  $$\text{AllDifferent}(x_{i,0}, x_{i,1}, \dots, x_{i,n-1}) \quad \forall i \in \{0..n-1\}$$
+  $$\text{AllDifferent}(x_{0,j}, x_{1,j}, \dots, x_{n-1,j}) \quad \forall j \in \{0..n-1\}$$
+
+* **Restricción Global Extensional de Jaula:**
+  Para cada jaula $c = \langle \text{cells}_c, T_c, \text{op}_c \rangle$, sea $V_c = [x_{i,j} \mid (i,j) \in \text{cells}_c]$ el vector de variables involucradas. Se aplica directamente:
+  $$\text{AllowedAssignments}(V_c, \mathcal{T}_c)$$
+  donde $\mathcal{T}_c = \text{compute\_allowed\_tuples}(n, c)$.
+
+* **Restricciones Redundantes Opcionales:**
+  $$\sum_{j=0}^{n-1} x_{i,j} = \frac{n(n+1)}{2}, \qquad \sum_{i=0}^{n-1} x_{i,j} = \frac{n(n+1)}{2}$$
+
+---
+
+### 3.2. Comparación Teórica: Variante A vs. Variante B
+
+| Característica | Variante A (Aritmética Intensional) | Variante B (Tabla Extensional) |
+|---|---|---|
+| **Definición de jaula** | Descompuesta en sumas lineales, productos encadenados y booleanos. | Catálogo de tuplas factibles $\mathcal{T}_c$ precalculadas. |
+| **Nivel de Consistencia** | Consistencia de Límites (*Bound Consistency*) / Consistencia de Arco local. | **Consistencia de Arco Generalizada (GAC)** sobre la jaula completa. |
+| **Variables Auxiliares** | Introduce variables intermedias para producto encadenado ($p_k$) y división ($b_{\text{dir}}$). | **Cero variables auxiliares** en la jaula. |
+| **Poda Temprana** | La propagación puede no detectar de inmediato combinaciones cruzadas infactibles. | Poda instantáneamente cualquier valor que no participe en al menos una tupla válida. |
+| **Escalabilidad** | Eficiente para jaulas muy grandes si el catálogo de tuplas fuera excesivo. | Óptima para jaulas de tamaño moderado ($k \le 4$), muy comunes en KenKen. |
+
+---
+
+### 3.3. Uso en Código
+
+La función `solve` permite seleccionar la variante mediante el parámetro `variant`:
+
+```python
+from kenken import Instance, solve, solve_table
+
+inst = Instance.load("examples/4x4_a.json")
+
+# Variante A (por defecto)
+res_a = solve(inst, variant="arithmetic")
+
+# Variante B (restricción global de tabla)
+res_b = solve(inst, variant="table")
+# o utilizando el alias directo:
+res_b = solve_table(inst)
+
+assert res_a.grid == res_b.grid  # Solución 100% idéntica
+```
+
+---
+
+### 3.4. Validación y Pruebas Unitarias
+
+Pruebas implementadas en [`tests/test_model.py`](../tests/test_model.py):
+* `test_examples_solve_uniquely_table_variant`: Resuelve todas las instancias de prueba en `examples/` (`3x3_a`, `4x4_a`, `5x5_a`, `6x6_gen_seed6`) verificando unicidad y optimalidad con la Variante B.
+* `test_table_variant_matches_arithmetic_variant`: Comprueba que la grilla resultante de la Variante B es exactamente igual a la de la Variante A para todas las instancias.
+* `test_table_variant_redundant_constraint`: Valida la compatibilidad de restricciones redundantes con tablas.
+* `test_table_variant_infeasible`: Comprueba detección inmediata de instancias infactibles (`INFEASIBLE`).
+* `test_solve_invalid_variant`: Comprueba el control de errores con variantes desconocidas.
+
+**Resultado de ejecución de pruebas:**
+```bash
+python -m pytest tests/test_model.py -q
+# 39 passed in 0.93s (100% éxito)
+```
+

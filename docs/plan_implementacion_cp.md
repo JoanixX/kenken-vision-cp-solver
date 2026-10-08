@@ -23,10 +23,10 @@
   - [x] Validar descarte de tuplas con números repetidos en celdas alineadas (misma fila o columna).
   - [x] Pruebas unitarias para operadores `=`, `+`, `-`, `*`, `/`.
 
-- [ ] **Tarea 2: Implementación de la Variante B (`build_model_table`)**
-  - [ ] Implementar `build_model_table(inst, redundant=False)` en `kenken/model.py`.
-  - [ ] Integrar `AddAllowedAssignments` para cada jaula.
-  - [ ] Pruebas de equivalencia: verificar que Variante B entrega la misma solución que Variante A en todos los ejemplos de `examples/`.
+- [x] **Tarea 2: Implementación de la Variante B (`build_model_table`)**
+  - [x] Implementar `build_model_table(inst, redundant=False)` en `kenken/model.py`.
+  - [x] Integrar `AddAllowedAssignments` para cada jaula.
+  - [x] Pruebas de equivalencia: verificar que Variante B entrega la misma solución que Variante A en todos los ejemplos de `examples/`.
 
 - [ ] **Tarea 3: Implementación de la Variante C (`solve_joint`) e Inferencia Conjunta**
   - [ ] Implementar `add_reified_cage_constraint(model, x, cage, r_var, name)` en `kenken/model.py`.

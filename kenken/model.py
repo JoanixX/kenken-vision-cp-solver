@@ -1,7 +1,6 @@
 """Modelo de Constraint Programming (OR-Tools CP-SAT) para KenKen.
 
-Formulación (variante A):
-
+Formulación (variante A - Aritmética Intensional):
   Variables   x[i][j] ∈ {1..n}           valor de la celda (i, j)
   Globales    AllDifferent(fila i)       para cada fila     (cuadrado latino)
               AllDifferent(columna j)    para cada columna
@@ -11,6 +10,12 @@ Formulación (variante A):
               '-'  |a - b| == T                          (AddAbsEquality)
               '/'  b_dir → a == T·c ;  ¬b_dir → c == T·a (reificada con OnlyEnforceIf)
   Opcional    Σ fila == n(n+1)/2 y Σ columna == n(n+1)/2 (redundante, implicada por AllDifferent)
+
+Formulación (variante B - Extensional / Tabla):
+  Variables   x[i][j] ∈ {1..n}           valor de la celda (i, j)
+  Globales    AllDifferent(fila i)       para cada fila     (cuadrado latino)
+              AllDifferent(columna j)    para cada columna
+  Jaulas      AddAllowedAssignments(scope, compute_allowed_tuples(n, cage)) (GAC)
 """
 
 from __future__ import annotations
@@ -26,7 +31,7 @@ Grid = list[list[int]]
 
 # ============================================================ construcción
 def build_model(inst: Instance, redundant: bool = False):
-    """Crea el modelo CP-SAT a partir de la instancia.
+    """Crea el modelo CP-SAT a partir de la instancia (Variante A: aritmética).
 
     Devuelve (model, x) donde x[i][j] es la variable de la celda (i, j).
     """
@@ -51,6 +56,40 @@ def build_model(inst: Instance, redundant: bool = False):
 
     for k, cage in enumerate(inst.cages):
         add_cage_constraint(model, x, cage, name=f"c{k}")
+
+    return model, x
+
+
+def build_model_table(inst: Instance, redundant: bool = False):
+    """Crea el modelo CP-SAT (Variante B: extensional) a partir de la instancia.
+
+    Modela las jaulas con la restricción global AddAllowedAssignments sobre
+    el catálogo de tuplas factibles calculado por compute_allowed_tuples.
+    Esto permite aplicar Consistencia de Arco Generalizada (GAC) sobre la jaula.
+
+    Devuelve (model, x) donde x[i][j] es la variable de la celda (i, j).
+    """
+    n = inst.n
+    model = cp_model.CpModel()
+
+    x = [[model.NewIntVar(1, n, f"x{i}{j}") for j in range(n)] for i in range(n)]
+
+    for i in range(n):
+        model.AddAllDifferent(x[i])
+    for j in range(n):
+        model.AddAllDifferent([x[i][j] for i in range(n)])
+
+    if redundant:
+        total = n * (n + 1) // 2
+        for i in range(n):
+            model.Add(sum(x[i]) == total)
+        for j in range(n):
+            model.Add(sum(x[i][j] for i in range(n)) == total)
+
+    for cage in inst.cages:
+        scope = [x[i][j] for i, j in cage.cells]
+        allowed_tuples = compute_allowed_tuples(n, cage)
+        model.AddAllowedAssignments(scope, allowed_tuples)
 
     return model, x
 
@@ -218,9 +257,25 @@ class SolveResult:
 
 
 def solve(inst: Instance, redundant: bool = False, time_limit: float = 30.0,
-          workers: int = 8, seed: int = 0) -> SolveResult:
-    """Resuelve la instancia y devuelve la grilla y las estadísticas del solver."""
-    model, x = build_model(inst, redundant=redundant)
+          workers: int = 8, seed: int = 0, variant: str = "arithmetic") -> SolveResult:
+    """Resuelve la instancia y devuelve la grilla y las estadísticas del solver.
+
+    Parámetros:
+      inst: instancia del problema.
+      redundant: si True, agrega restricciones redundantes de suma de fila/columna.
+      time_limit: límite de tiempo en segundos.
+      workers: hilos de búsqueda del solver.
+      seed: semilla aleatoria.
+      variant: 'arithmetic' (Variante A: descomposición aritmética) o
+               'table' (Variante B: restricción global AddAllowedAssignments).
+    """
+    if variant == "table":
+        model, x = build_model_table(inst, redundant=redundant)
+    elif variant == "arithmetic":
+        model, x = build_model(inst, redundant=redundant)
+    else:
+        raise ValueError(f"Variante desconocida: {variant}")
+
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = time_limit
     solver.parameters.num_search_workers = workers
@@ -232,6 +287,11 @@ def solve(inst: Instance, redundant: bool = False, time_limit: float = 30.0,
         grid = [[solver.Value(v) for v in row] for row in x]
     return SolveResult(solver.StatusName(status), grid, solver.WallTime(),
                        solver.NumBranches(), solver.NumConflicts())
+
+
+def solve_table(inst: Instance, redundant: bool = False, **kwargs) -> SolveResult:
+    """Atajo para resolver usando la Variante B (restricción global de tabla)."""
+    return solve(inst, redundant=redundant, variant="table", **kwargs)
 
 
 class _SolutionCounter(cp_model.CpSolverSolutionCallback):
@@ -248,9 +308,16 @@ class _SolutionCounter(cp_model.CpSolverSolutionCallback):
             self.StopSearch()
 
 
-def find_solutions(inst: Instance, limit: int = 2, time_limit: float = 30.0) -> list[Grid]:
+def find_solutions(inst: Instance, limit: int = 2, time_limit: float = 30.0,
+                   variant: str = "arithmetic") -> list[Grid]:
     """Enumera hasta `limit` soluciones distintas (con limit=2 basta para saber si es única)."""
-    model, x = build_model(inst)
+    if variant == "table":
+        model, x = build_model_table(inst)
+    elif variant == "arithmetic":
+        model, x = build_model(inst)
+    else:
+        raise ValueError(f"Variante desconocida: {variant}")
+
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = time_limit
     solver.parameters.enumerate_all_solutions = True  # requiere 1 worker
@@ -259,8 +326,9 @@ def find_solutions(inst: Instance, limit: int = 2, time_limit: float = 30.0) -> 
     return counter.solutions
 
 
-def has_unique_solution(inst: Instance, time_limit: float = 30.0) -> bool:
-    return len(find_solutions(inst, limit=2, time_limit=time_limit)) == 1
+def has_unique_solution(inst: Instance, time_limit: float = 30.0,
+                        variant: str = "arithmetic") -> bool:
+    return len(find_solutions(inst, limit=2, time_limit=time_limit, variant=variant)) == 1
 
 
 # ============================================================ verificación

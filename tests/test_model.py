@@ -10,12 +10,15 @@ import pytest
 from kenken.generator import generate
 from kenken.instance import Cage, Instance, InstanceError
 from kenken.model import (
+    build_model,
+    build_model_table,
     cage_satisfied,
     check_solution,
     compute_allowed_tuples,
     find_solutions,
     has_unique_solution,
     solve,
+    solve_table,
 )
 
 EXAMPLES = sorted((Path(__file__).parent.parent / "examples").glob("*.json"))
@@ -137,4 +140,44 @@ def test_compute_allowed_tuples_multiplication():
     assert (2, 3, 2) in tuples
     for t in tuples:
         assert cage_satisfied(c_prod, list(t))
+
+
+@pytest.mark.parametrize("path", EXAMPLES, ids=lambda p: p.stem)
+def test_examples_solve_uniquely_table_variant(path):
+    inst = Instance.load(path).validate()
+    res = solve(inst, variant="table")
+    assert res.status == "OPTIMAL"
+    assert check_solution(inst, res.grid)
+    assert has_unique_solution(inst, variant="table")
+
+
+@pytest.mark.parametrize("path", EXAMPLES, ids=lambda p: p.stem)
+def test_table_variant_matches_arithmetic_variant(path):
+    inst = Instance.load(path).validate()
+    res_arith = solve(inst, variant="arithmetic")
+    res_table = solve(inst, variant="table")
+    assert res_arith.grid == res_table.grid
+    assert res_table.status == "OPTIMAL"
+
+
+@pytest.mark.parametrize("redundant", [False, True])
+def test_table_variant_redundant_constraint(redundant):
+    inst = Instance.load(EXAMPLES[1])
+    res = solve_table(inst, redundant=redundant)
+    assert res.status == "OPTIMAL"
+    assert check_solution(inst, res.grid)
+
+
+def test_table_variant_infeasible():
+    inst = Instance(3, [Cage([[0, 0], [0, 1], [0, 2]], 7, "+"),
+                        Cage([[1, 0], [1, 1], [1, 2], [2, 2]], 9, "+"),
+                        Cage([[2, 0], [2, 1]], 3, "+")])
+    assert solve(inst, variant="table").status == "INFEASIBLE"
+
+
+def test_solve_invalid_variant():
+    inst = Instance.load(EXAMPLES[0])
+    with pytest.raises(ValueError, match="Variante desconocida"):
+        solve(inst, variant="nonexistent")
+
 
