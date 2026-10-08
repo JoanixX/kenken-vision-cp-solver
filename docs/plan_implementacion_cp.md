@@ -34,10 +34,10 @@
   - [x] Soportar función objetivo ponderada por $\log P$ de la CNN.
   - [x] Pruebas con ruido simulado: forzar un error en el target u operador top-1 y verificar que el solver recupera la solución correcta usando el top-$k$.
 
-- [ ] **Tarea 4: Integración en el Pipeline End-to-End con Fallback Automático**
-  - [ ] Actualizar `kenken/pipeline.py` para definir `solve_image(path, method="auto", ...)`.
-  - [ ] Estrategia "auto": intentar primero resolver con la lectura top-1 (Variante A); si resulta `INFEASIBLE`, ejecutar automáticamente Variante C (`solve_joint`).
-  - [ ] Validar que el flujo completo no requiera intervención manual.
+- [x] **Tarea 4: Integración en el Pipeline End-to-End con Fallback Automático**
+  - [x] Actualizar `kenken/pipeline.py` para definir `solve_image(path, method="auto", ...)`.
+  - [x] Estrategia "auto": intentar primero resolver con la lectura top-1 (Variante A); si resulta `INFEASIBLE`, ejecutar automáticamente Variante C (`solve_joint`).
+  - [x] Validar que el flujo completo no requiera intervención manual.
 
 - [ ] **Tarea 5: Suite de Pruebas Unitarias Exhaustivas de CP**
   - [ ] Crear/actualizar `tests/test_model.py` con pruebas para:

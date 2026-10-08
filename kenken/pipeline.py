@@ -8,6 +8,7 @@ Hito 5: modelo CP y visualización                      -> solve_image()
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -15,6 +16,7 @@ import numpy as np
 from .cages import detect_cages
 from .grid import detect_grid
 from .instance import Cage, Instance
+from .model import SolveResult, solve, solve_joint
 from .ocr import allowed_ops, decode_readings, extract_label_glyphs
 from .preprocessing import RECT_SIZE, find_board, rectify
 
@@ -87,3 +89,112 @@ def read_instance(st: Structure, k: int = 5, model=None, alternatives: bool = Tr
     st.debug["unread"] = unread
     st.debug["glyph_log_probs"] = main_lp
     return Instance(st.n, cages, candidates)
+
+
+@dataclass
+class PipelineResult:
+    """Resultado del pipeline end-to-end solve_image."""
+
+    image: np.ndarray
+    structure: Structure
+    instance: Instance
+    solve_result: SolveResult
+    fallback_used: bool = False
+
+    @property
+    def solved(self) -> bool:
+        return self.solve_result.solved
+
+    @property
+    def grid(self) -> list[list[int]] | None:
+        return self.solve_result.grid
+
+    @property
+    def status(self) -> str:
+        return self.solve_result.status
+
+
+def solve_image(
+    img_or_path: str | Path | np.ndarray,
+    method: str = "auto",
+    k: int = 5,
+    cnn_model=None,
+    time_limit: float = 30.0,
+    redundant: bool = False,
+    rect_size: int = RECT_SIZE,
+    alternatives: bool = True,
+) -> PipelineResult:
+    """Resuelve un puzzle KenKen desde una imagen de forma end-to-end sin intervención manual.
+
+    Etapas:
+      1. Visión (estructura): detecta tablero, homografía H, tamaño n y jaulas.
+      2. Visión (OCR/CNN): lee etiquetas y genera candidatos top-k con log-probs.
+      3. Solver CP:
+         - Si method == 'auto': intenta primero con la lectura directa (Variante A).
+           Si es INFEASIBLE, activa automáticamente la inferencia conjunta (Variante C).
+         - Si method in ('arithmetic', 'table', 'joint'): ejecuta la variante indicada.
+
+    Devuelve un PipelineResult con la grilla solución, estadísticas y datos de visión.
+    """
+    if isinstance(img_or_path, (str, Path)):
+        path_str = str(img_or_path)
+        img = cv2.imread(path_str)
+        if img is None:
+            raise FileNotFoundError(f"No se pudo cargar la imagen: {path_str}")
+    elif isinstance(img_or_path, np.ndarray):
+        img = img_or_path
+    else:
+        raise TypeError(f"Tipo de imagen no soportado: {type(img_or_path)}")
+
+    # 1. Extracción de estructura geométrica
+    st = extract_structure(img, size=rect_size)
+
+    # 2. Lectura de etiquetas e hipótesis con la CNN
+    inst = read_instance(st, k=k, model=cnn_model, alternatives=alternatives)
+
+    # 3. Resolución con el modelo de Constraint Programming
+    fallback_used = False
+    if method == "auto":
+        # Intento 1: lectura directa más probable (Variante A)
+        res = solve(inst, variant="arithmetic", redundant=redundant, time_limit=time_limit)
+        if not res.solved and inst.candidates:
+            # Intento 2: fallback automático a inferencia conjunta (Variante C)
+            res_joint = solve_joint(inst, time_limit=time_limit)
+            if res_joint.solved:
+                res = res_joint
+                fallback_used = True
+                if res_joint.chosen_candidates:
+                    new_cages = []
+                    for c_idx, cage in enumerate(inst.cages):
+                        chosen = res_joint.chosen_candidates.get(c_idx)
+                        if chosen:
+                            new_cages.append(Cage(cage.cells, chosen["target"], chosen["op"]))
+                        else:
+                            new_cages.append(cage)
+                    inst = Instance(inst.n, new_cages, inst.candidates)
+    elif method in ("arithmetic", "table"):
+        res = solve(inst, variant=method, redundant=redundant, time_limit=time_limit)
+    elif method == "joint":
+        res = solve_joint(inst, time_limit=time_limit)
+        if res.solved and res.chosen_candidates:
+            new_cages = []
+            for c_idx, cage in enumerate(inst.cages):
+                chosen = res.chosen_candidates.get(c_idx)
+                if chosen:
+                    new_cages.append(Cage(cage.cells, chosen["target"], chosen["op"]))
+                else:
+                    new_cages.append(cage)
+            inst = Instance(inst.n, new_cages, inst.candidates)
+    else:
+        raise ValueError(
+            f"Método desconocido: {method}. Use 'auto', 'arithmetic', 'table' o 'joint'."
+        )
+
+    return PipelineResult(
+        image=img,
+        structure=st,
+        instance=inst,
+        solve_result=res,
+        fallback_used=fallback_used,
+    )
+

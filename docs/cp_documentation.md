@@ -302,4 +302,87 @@ python -m pytest tests/test_model.py -q
 # 44 passed in 1.20s (100% éxito)
 ```
 
+---
+
+## 5. Integración End-to-End (`solve_image`) y Fallback Automático
+
+### 5.1. Motivación y Arquitectura del Pipeline
+
+El objetivo de la **Fase 3 del proyecto** es lograr un sistema completamente automatizado (*End-to-End*) donde el usuario proporcione una imagen y el sistema entregue la solución sin requerir ajustes manuales ni reintentos guiados:
+
+$$\text{Imagen (JPG/PNG/Array)} \xrightarrow{\text{solve\_image()}} \text{PipelineResult (Estructura, Instancia, Grilla Solución)}$$
+
+### 5.2. Estrategia de Fallback Automático (`method="auto"`)
+
+La función [`solve_image(img_or_path, method="auto")`](../kenken/pipeline.py) implementa una estrategia jerárquica de resolución:
+
+```mermaid
+flowchart TD
+    A["Imagen de Entrada (path o np.ndarray)"] --> B["extract_structure(): Homografía, n, Jaulas"]
+    B --> C["read_instance(): Glifos + CNN -> Top-k Candidatos"]
+    C --> D{"method == 'auto'"}
+    D -->|Intento 1| E["solve(inst, variant='arithmetic')"]
+    E --> F{¿res.solved?}
+    F -->|Sí (OPTIMAL)| Z["Retornar PipelineResult (fallback=False)"]
+    F -->|No (INFEASIBLE)| G{¿Hay candidatos alternativos?}
+    G -->|Sí| H["Fallback: solve_joint(inst)"]
+    H --> I{¿res_joint.solved?}
+    I -->|Sí| J["Actualizar instancia con lecturas óptimas"]
+    J --> K["Retornar PipelineResult (fallback=True)"]
+    I -->|No| L["Retornar PipelineResult (INFEASIBLE)"]
+    G -->|No| L
+```
+
+1. **Intento Primario (Rápido):** Resuelve la instancia asumiendo que la lectura top-1 de la visión es correcta mediante el modelo aritmético (Variante A). En condiciones normales de iluminación y nitidez, este paso resuelve el puzzle en menos de 15 ms.
+2. **Fallback Automático (Resiliente):** Si el intento primario devuelve `INFEASIBLE` y la visión registró candidatos alternativos (`inst.candidates`), el pipeline conmuta automáticamente a la inferencia conjunta (Variante C). Maximiza la verosimilitud de las lecturas corrigiendo caracteres dudosos y entregando la solución correcta.
+
+### 5.3. Estructura de Datos `PipelineResult`
+
+```python
+@dataclass
+class PipelineResult:
+    image: np.ndarray          # Imagen original en formato BGR
+    structure: Structure       # Esquinas, homografía H, n, coordenadas y jaulas
+    instance: Instance         # Instancia KenKen (actualizada si hubo fallback)
+    solve_result: SolveResult  # Solución, status, tiempo y ramas del solver CP
+    fallback_used: bool = False # Indicador de activación de inferencia conjunta
+```
+
+### 5.4. Uso en Código y CLI
+
+**Desde Python:**
+```python
+from kenken import solve_image
+
+result = solve_image("dataset/real/puzzle_01.jpg", method="auto")
+
+if result.solved:
+    print(f"KenKen {result.structure.n}x{result.structure.n} resuelto con éxito!")
+    print(f"Fallback conjunto activado: {result.fallback_used}")
+    for row in result.grid:
+        print(row)
+```
+
+**Desde la Línea de Comandos:**
+```bash
+python -m kenken dataset/real/puzzle_01.jpg
+```
+
+---
+
+### 5.5. Validación y Pruebas Unitarias
+
+Pruebas implementadas en [`tests/test_pipeline.py`](../tests/test_pipeline.py):
+* `test_solve_image_synthetic_end_to_end`: Ejecuta el flujo completo desde el render sintético vectorial hasta la solución, comprobando que `res.grid == gt["solution"]`.
+* `test_solve_image_methods`: Valida la invocación explícita con `method="arithmetic"`, `method="table"` y `method="joint"`.
+* `test_solve_image_auto_triggers_fallback`: Simula un fallo forzado en la lectura top-1 de una jaula, verificando que el modo `"auto"` activa exitosamente el fallback (`fallback_used == True`) y recupera la solución correcta sin intervención.
+* `test_solve_image_file_not_found` y `test_solve_image_invalid_method`: Valida el control de excepciones ante archivos inexistentes o argumentos inválidos.
+
+**Resultado de ejecución de pruebas:**
+```bash
+python -m pytest tests/test_pipeline.py -q
+# 7 passed in 2.84s (100% éxito)
+```
+
+
 
