@@ -98,6 +98,111 @@ def add_cage_constraint(model: cp_model.CpModel, x, cage: Cage, name: str = "c")
         raise ValueError(op)
 
 
+def compute_allowed_tuples(n: int, cage: Cage) -> list[tuple[int, ...]]:
+    """Calcula todas las tuplas factibles permitidas para una jaula.
+
+    Filtra las combinaciones respetando:
+      1. El dominio de cada celda: v_i in {1..n}.
+      2. No repetición para celdas que comparten la misma fila o columna.
+      3. Satisfacción de la operación aritmética (target, op).
+    """
+    cells = cage.cells
+    k = len(cells)
+    if k == 0:
+        return []
+    op, target = cage.op, cage.target
+
+    # Precalcular dependencias de no repetición: dos celdas en la misma fila
+    # o columna no pueden tener el mismo valor.
+    conflicts = [
+        [j for j in range(i) if cells[i][0] == cells[j][0] or cells[i][1] == cells[j][1]]
+        for i in range(k)
+    ]
+    allowed: list[tuple[int, ...]] = []
+
+    if op == "=":
+        if k == 1 and 1 <= target <= n:
+            return [(target,)]
+        return []
+
+    if op == "-":
+        if k != 2 or target <= 0:
+            return []
+        conf = bool(conflicts[1])
+        for a in range(1, n + 1):
+            for b in (a - target, a + target):
+                if 1 <= b <= n and not (conf and a == b):
+                    allowed.append((a, b))
+        return allowed
+
+    if op == "/":
+        if k != 2 or target <= 0:
+            return []
+        conf = bool(conflicts[1])
+        for b in range(1, n + 1):
+            a = b * target
+            if 1 <= a <= n and not (conf and a == b):
+                allowed.append((a, b))
+                if a != b:
+                    allowed.append((b, a))
+        return allowed
+
+    if op == "+":
+        current: list[int] = []
+
+        def _search_sum(idx: int, cur_sum: int):
+            if idx == k:
+                if cur_sum == target:
+                    allowed.append(tuple(current))
+                return
+            rem = k - idx
+            if cur_sum + rem > target or cur_sum + rem * n < target:
+                return
+            conf = conflicts[idx]
+            for val in range(1, n + 1):
+                if cur_sum + val + (rem - 1) > target:
+                    break
+                if cur_sum + val + (rem - 1) * n < target:
+                    continue
+                if any(current[j] == val for j in conf):
+                    continue
+                current.append(val)
+                _search_sum(idx + 1, cur_sum + val)
+                current.pop()
+
+        _search_sum(0, 0)
+        return allowed
+
+    if op == "*":
+        current = []
+
+        def _search_prod(idx: int, cur_prod: int):
+            if idx == k:
+                if cur_prod == target:
+                    allowed.append(tuple(current))
+                return
+            if target % cur_prod != 0:
+                return
+            rem_target = target // cur_prod
+            rem = k - idx
+            if rem_target > (n ** rem):
+                return
+            conf = conflicts[idx]
+            for val in range(1, n + 1):
+                if rem_target % val != 0:
+                    continue
+                if any(current[j] == val for j in conf):
+                    continue
+                current.append(val)
+                _search_prod(idx + 1, cur_prod * val)
+                current.pop()
+
+        _search_prod(0, 1)
+        return allowed
+
+    return []
+
+
 # ============================================================ resolución
 @dataclass
 class SolveResult:

@@ -9,7 +9,14 @@ import pytest
 
 from kenken.generator import generate
 from kenken.instance import Cage, Instance, InstanceError
-from kenken.model import check_solution, find_solutions, has_unique_solution, solve
+from kenken.model import (
+    cage_satisfied,
+    check_solution,
+    compute_allowed_tuples,
+    find_solutions,
+    has_unique_solution,
+    solve,
+)
 
 EXAMPLES = sorted((Path(__file__).parent.parent / "examples").glob("*.json"))
 
@@ -77,3 +84,57 @@ def test_generator_produces_unique_puzzles(n):
     inst, solution = generate(n, seed=100 + n)
     assert check_solution(inst, solution)
     assert find_solutions(inst, limit=2) == [solution]
+
+
+def test_compute_allowed_tuples_equals():
+    c_ok = Cage([(0, 1)], 3, "=")
+    assert compute_allowed_tuples(4, c_ok) == [(3,)]
+    c_out = Cage([(0, 1)], 5, "=")
+    assert compute_allowed_tuples(4, c_out) == []
+
+
+def test_compute_allowed_tuples_subtraction():
+    c_sub = Cage([(0, 0), (0, 1)], 2, "-")
+    tuples = compute_allowed_tuples(4, c_sub)
+    assert set(tuples) == {(1, 3), (3, 1), (2, 4), (4, 2)}
+    for t in tuples:
+        assert cage_satisfied(c_sub, list(t))
+
+
+def test_compute_allowed_tuples_division():
+    c_div = Cage([(0, 0), (1, 0)], 2, "/")
+    tuples = compute_allowed_tuples(4, c_div)
+    assert set(tuples) == {(2, 1), (1, 2), (4, 2), (2, 4)}
+    for t in tuples:
+        assert cage_satisfied(c_div, list(t))
+
+
+def test_compute_allowed_tuples_addition_collinear_vs_l_shape():
+    # 3 celdas colineares en fila 0: deben ser todas distintas
+    c_line = Cage([(0, 0), (0, 1), (0, 2)], 7, "+")
+    tuples_line = compute_allowed_tuples(4, c_line)
+    assert len(tuples_line) == 6
+    for t in tuples_line:
+        assert len(set(t)) == 3  # todas distintas
+        assert sum(t) == 7
+
+    # 3 celdas en forma de L: celda (0,0) y celda (1,1) NO comparten fila ni columna
+    c_l = Cage([(0, 0), (0, 1), (1, 1)], 7, "+")
+    tuples_l = compute_allowed_tuples(4, c_l)
+    assert len(tuples_l) == 8  # incluye (2, 3, 2) y (3, 1, 3)
+    assert (2, 3, 2) in tuples_l
+    assert (3, 1, 3) in tuples_l
+    for t in tuples_l:
+        assert t[0] != t[1]  # celdas (0,0) y (0,1) comparten fila
+        assert t[1] != t[2]  # celdas (0,1) y (1,1) comparten columna
+        assert sum(t) == 7
+
+
+def test_compute_allowed_tuples_multiplication():
+    # Jaula en L con target 12 en grilla 4x4
+    c_prod = Cage([(0, 0), (0, 1), (1, 1)], 12, "*")
+    tuples = compute_allowed_tuples(4, c_prod)
+    assert (2, 3, 2) in tuples
+    for t in tuples:
+        assert cage_satisfied(c_prod, list(t))
+
