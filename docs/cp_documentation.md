@@ -435,6 +435,50 @@ La figura [`results/figs/cp_benchmark.png`](../results/figs/cp_benchmark.png) re
 python -m kenken.benchmark --sizes 3 4 5 6 7 8 9 --repeats 3
 ```
 
+---
 
+## 7. Formalización en LaTeX y Estructura del Informe Técnico
 
+### 7.1. Estructura de Archivos del Informe
 
+Los archivos del informe técnico final en formato **IEEEtran** se encuentran organizados en la carpeta [`informe/`](../informe/):
+
+* [`informe/main.tex`](../informe/main.tex): Documento raíz en formato IEEEtran. Incluye título, afiliación institucional (UPC), resumen ejecutivo en español, introducción con fundamentación neuro-simbólica, arquitectura del pipeline end-to-end, inclusión modular de la sección de CP, conclusiones y comandos de bibliografía.
+* [`informe/cp_model_section.tex`](../informe/cp_model_section.tex): Sección modular que detalla con rigor matemático:
+  - Definición formal del CSP como la tupla $\mathcal{P} = \langle X, D, C \rangle$.
+  - Variables de decisión $x_{i,j}$ y dominios $D(x_{i,j}) = \{1, \dots, n\}$.
+  - Restricciones globales de Cuadrado Latino ($\text{AllDifferent}$ en filas y columnas) y restricciones redundantes de suma triangular $\sum = n(n+1)/2$.
+  - Formulación de Jaulas bajo la **Variante A** (Aritmética intensional con descomposición encadenada de productos y división reificada vía variable booleana $b_{\text{dir}}$).
+  - Formulación de Jaulas bajo la **Variante B** (Restricciones globales de tabla extensional con tuplas factibles $\mathcal{T}_c$ y garantía de Consistencia de Arco Generalizada - GAC).
+  - Formulación de la **Variante C** (Inferencia conjunta neuro-simbólica MAP mediante variables de hipótesis $r_{c,k}$, $\text{ExactlyOne}$, reificación condicional con $\text{OnlyEnforceIf}$ y función objetivo ponderada por log-probabilidades).
+  - Análisis de complejidad teórica ($\mathcal{O}(n^{n^2})$ vs. reducción por Cuadrados Latinos y deducción en el nodo raíz vía CP-SAT / LCG).
+  - Cuadro consolidado de resultados experimentales y figura comparativa de rendimiento.
+* [`informe/refs.bib`](../informe/refs.bib): Base de datos bibliográfica BibTeX con referencias académicas primarias:
+  - Jean-Charles Régin (AAAI 1994) para el filtrado de `AllDifferent`.
+  - Christian Bessière et al. (Constraints 2006) para algoritmos de filtrado y GAC en restricciones de tabla.
+  - Olga Ohrimenko, Peter Stuckey et al. (CP 2009) para *Lazy Clause Generation* (LCG).
+  - Laurent Perron & Vincent Furnon (Google OR-Tools 2024) para CP-SAT.
+  - Luc De Raedt et al. (AAAI 2011) para integración de programación por restricciones y aprendizaje automático.
+  - Gary Bradski (2000) para la biblioteca OpenCV.
+* [`informe/figs/cp_benchmark.png`](../informe/figs/cp_benchmark.png): Imagen del benchmark en tres paneles lista para compilación autosuficiente.
+
+### 7.2. Compilación del Documento
+
+El documento está diseñado para compilar de manera directa tanto en plataformas en la nube (**Overleaf**) como en entornos locales con **TeX Live** o **MiKTeX**:
+
+```bash
+pdflatex main.tex
+bibtex main
+pdflatex main.tex
+pdflatex main.tex
+```
+
+### 7.3. Cobertura de Criterios de la Rúbrica del Trabajo Práctico (CP)
+
+| Componente de Rúbrica | Ponderación | Implementación en Código | Documentación y Reporte |
+|:---|:---:|:---|:---|
+| **Restricciones Globales** | 3 pts | `AddAllDifferent`, `AddAllowedAssignments` en [`kenken/model.py`](../kenken/model.py) | Sección 2, 3 y [`informe/cp_model_section.tex`](../informe/cp_model_section.tex) Sec. II-B, II-D |
+| **Restricciones Reificadas** | 1 pt | `OnlyEnforceIf` para división no conmutativa y para hipótesis OCR en Variante C | Sección 4 y [`informe/cp_model_section.tex`](../informe/cp_model_section.tex) Sec. II-C.5, II-E |
+| **Modelado Formal CSP** | 3 pts | Especificación formal $\langle X, D, C \rangle$, dominios, variantes A, B, C | Sección 1 a 4 y [`informe/cp_model_section.tex`](../informe/cp_model_section.tex) Sec. II |
+| **Integración Pipeline** | 2 pts | `solve_image()` con fallback automático a inferencia conjunta en [`kenken/pipeline.py`](../kenken/pipeline.py) | Sección 5 e [`informe/main.tex`](../informe/main.tex) Sec. II |
+| **Informe Técnico** | 5 pts | Código LaTeX completo, modular y listo para compilar con bibliografía | [`informe/main.tex`](../informe/main.tex), [`informe/cp_model_section.tex`](../informe/cp_model_section.tex), [`informe/refs.bib`](../informe/refs.bib) |

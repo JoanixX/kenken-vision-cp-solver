@@ -54,10 +54,11 @@
   - [x] Exportar resultados a `results/cp_benchmark.csv`.
   - [x] Generar gráficos comparativos en `results/figs/cp_benchmark.png` (tiempo vs $n$, ramas vs $n$, comparativa).
 
-- [ ] **Tarea 7: Redacción del Modelo Formal y Análisis de Complejidad para el Informe LaTeX**
-  - [ ] Redactar especificación formal $\langle X, D, C \rangle$ con LaTeX.
-  - [ ] Explicar la formulación de restricciones globales y reificación en la sección técnica.
-  - [ ] Documentar análisis de complejidad teórica ($n^{n^2}$) vs empírica (espacio explorado por CP-SAT con Lazy Clause Generation).
+- [x] **Tarea 7: Redacción del Modelo Formal y Análisis de Complejidad para el Informe LaTeX**
+  - [x] Redactar especificación formal $\langle X, D, C \rangle$ con LaTeX en `informe/cp_model_section.tex`.
+  - [x] Explicar la formulación de restricciones globales y reificación en la sección técnica.
+  - [x] Documentar análisis de complejidad teórica ($n^{n^2}$) vs empírica (espacio explorado por CP-SAT con Lazy Clause Generation).
+  - [x] Integrar documento principal IEEEtran en `informe/main.tex`, bibliografía `informe/refs.bib` y figuras.
 
 ---
 

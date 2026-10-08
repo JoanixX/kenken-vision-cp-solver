@@ -1,0 +1,65 @@
+\documentclass[conference]{IEEEtran}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish,es-tabla]{babel}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{cite}
+\usepackage{url}
+\usepackage{hyperref}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    citecolor=blue,
+    urlcolor=blue
+}
+
+\begin{document}
+
+\title{Sistema H\'{\i}brido Neuro-Simb\'olico de Visi\'on por Computador y Programaci\'on por Restricciones para la Resoluci\'on de KenKen}
+
+\author{\IEEEauthorblockN{Proyecto de Investigaci\'on Aplicada}
+\IEEEauthorblockA{\textit{T\'opicos en Ciencias de la Computaci\'on} \\
+\textit{Universidad Peruana de Ciencias Aplicadas (UPC)}\\
+Lima, Per\'u}
+}
+
+\maketitle
+
+\begin{abstract}
+Este art\'{\i}culo presenta una arquitectura integral neuro-simb\'olica para la resoluci\'on automatizada de acertijos aritm\'etico-l\'ogicos KenKen a partir de im\'agenes sin procesar. El sistema articula una fase sensorial de visi\'on computacional (correcci\'on de perspectiva, segmentaci\'on de cuadr\'{\i}cula y reconocimiento \'optico de caracteres con probabilidades de confusi\'on) con un motor de Programaci\'on por Restricciones (CP) sustentado en CP-SAT de Google OR-Tools. Formulamos el problema formalmente como un CSP $\langle X, D, C \rangle$, implementando y contrastando emp\'{\i}ricamente: (1) modelado aritm\'etico intensional con descomposici\'on de productos y divisi\'on reificada, (2) restricciones globales extensionales de tabla con garant\'{\i}a de Consistencia de Arco Generalizada (GAC), y (3) inferencia conjunta neuro-simb\'olica (MAP) para recuperaci\'on robusta ante fallos de lectura OCR. En evaluaciones sistem\'aticas sobre \'ordenes $n \in [3, 9]$, el solver resuelve tableros de hasta $9 \times 9$ ($1.96 \times 10^{77}$ estados brutos) en menos de 21~ms en el nodo ra\'{\i}z con cero ramas de backtracking, demostrando una reducci\'on del 39.5\% en tiempo de resoluci\'on mediante restricciones de tabla en $n=9$.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Programaci\'on por Restricciones, KenKen, Inferencia Neuro-Simb\'olica, Restricciones de Tabla, GAC, CP-SAT, Visi\'on por Computador.
+\end{IEEEkeywords}
+
+\section{Introducci\'on}
+El acertijo KenKen, inventado en 2004 por Tetsuya Miyamoto, generaliza el concepto de Cuadrado Latino al imponer restricciones aritm\'eticas sobre subconjuntos conexos de celdas denominados \textit{jaulas} (\textit{cages}). A diferencia de Sudoku, la topolog\'{\i}a irregular de las jaulas y la multiplicidad de operadores ($=, +, -, \times, \div$) provocan una explosi\'on combinatoria exponencial en el espacio de estados no restringido $\mathcal{O}(n^{n^2})$.
+
+El desaf\'{\i}o t\'ecnico se intensifica cuando el tablero debe inferirse directamente desde im\'agenes f\'{\i}sicas o capturas de c\'amara: peque\~nas ambig\"uedades o ruidos en el reconocimiento \'optico de caracteres (OCR) tornan el CSP r\'{\i}gido en insatisfactible si se asumen lecturas deterministas ingenuas. Para solventar este paradigma, proponemos una formulaci\'on neuro-simb\'olica h\'{\i}brida donde la visi\'on provee distribuciones de probabilidad sobre hip\'otesis visuales y el solver de CP resuelve de forma conjunta la consistencia l\'ogica y la optimizaci\'on sensorial v\'{\i}a reificaci\'on condicional.
+
+\section{Arquitectura del Pipeline End-to-End}
+El flujo de procesamiento se estructura en tres etapas secuenciales con lazo de retroalimentaci\'on correctivo:
+\begin{enumerate}
+    \item \textbf{Preprocesamiento y Rectificaci\'on Geom\'etrica:} Detecci\'on del contorno cuadrangular dominante de la grilla mediante transformadas morfol\'ogicas y rectificaci\'on de perspectiva mediante transformaci\'on proyectiva homogr\'afica.
+    \item \textbf{Detecci\'on Topol\'ogica y OCR:} Segmentaci\'on de bordes de jaula, extracci\'on de las regiones de texto/glifos y clasificaci\'on con matrices de confusi\'on para obtener un ranking de candidatos $(T_{c,k}, \text{op}_{c,k}, P_{c,k})$.
+    \item \textbf{Motor de Constraint Programming y Fallback:} Resoluci\'on inicial r\'apida con hip\'otesis \textit{top-1}. En caso de insatisfactibilidad (\texttt{INFEASIBLE}), el sistema activa de forma totalmente autom\'atica el modelo de inferencia conjunta neuro-simb\'olica (Variante C).
+\end{enumerate}
+
+% Inclusión del modelado formal de CP, complejidad y resultados experimentales
+\input{cp_model_section}
+
+\section{Conclusiones y Trabajo Futuro}
+La integraci\'on de t\'ecnicas de Programaci\'on por Restricciones (CP-SAT) con visi\'on por computador ha permitido desarrollar un sistema robusto de alta eficiencia para la resoluci\'on de KenKen. El uso de restricciones globales extensionales de tabla (\texttt{AllowedAssignments}) demostr\'o alcanzar Consistencia de Arco Generalizada (GAC), logrando una aceleraci\'on de casi el 40\% en $n=9$ respecto al modelo intensional. Asimismo, el esquema de inferencia conjunta mediante reificaci\'on probabil\'{\i}stica confiere al sistema una tolerancia completa frente a errores sensoriales del OCR.
+
+Como trabajo futuro, se proyecta la extensi\'on del marco de inferencia hacia aprendizaje end-to-end de pesos de confianza mediante diferenciaci\'on de solvers combinatorios y la evaluaci\'on del pipeline sobre datasets reales capturados en condiciones lum\'{\i}nicas adversas.
+
+\bibliographystyle{IEEEtran}
+\bibliography{refs}
+
+\end{document}
