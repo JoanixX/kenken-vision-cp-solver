@@ -384,5 +384,57 @@ python -m pytest tests/test_pipeline.py -q
 # 7 passed in 2.84s (100% éxito)
 ```
 
+---
+
+## 6. Benchmarking Experimental y Análisis de Complejidad
+
+### 6.1. Metodología de Evaluación
+
+El módulo [`kenken/benchmark.py`](../kenken/benchmark.py) evalúa el rendimiento computacional sistemático del solver variando:
+* **Dimensión de la grilla:** $n \in \{3, 4, 5, 6, 7, 8, 9\}$.
+* **Variantes de modelado:**
+  1. `A_aritmética`: Descomposición intensional.
+  2. `A_redundante`: Aritmética + sumas lineales de fila/columna ($\sum = n(n+1)/2$).
+  3. `B_tabla`: Restricción global de tabla `AddAllowedAssignments` (GAC).
+  4. `B_redundante`: Tabla + sumas lineales redundantes.
+* **Métricas registradas:** Tiempo de CPU (*Wall time* en ms), ramas del árbol de búsqueda (*Branches*), conflictos resueltos (*Conflicts*) y verificación de exactitud.
+
+### 6.2. Resultados Experimentales
+
+Tabla consolidada a partir de [`results/cp_benchmark.csv`](../results/cp_benchmark.csv):
+
+| $n$ | Tamaño Grilla | Espacio Bruto $n^{n^2}$ | Variante A (ms) | Variante A + Redundante (ms) | Variante B Tabla (ms) | Variante B + Redundante (ms) | Ramas Medias | Conflictos |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| 3 | $3 \times 3$ | $1.97 \times 10^4$ | $9.07$ | $15.26$ | $15.00$ | $14.47$ | 0 | 0 |
+| 4 | $4 \times 4$ | $4.29 \times 10^9$ | $10.38$ | $14.28$ | $15.46$ | $14.70$ | 0 | 0 |
+| 5 | $5 \times 5$ | $2.98 \times 10^{17}$ | $13.53$ | $14.56$ | $14.51$ | $14.46$ | 0 | 0 |
+| 6 | $6 \times 6$ | $1.03 \times 10^{28}$ | $9.54$ | $14.39$ | $15.42$ | $14.22$ | 0 | 0 |
+| 7 | $7 \times 7$ | $2.56 \times 10^{41}$ | $9.23$ | $14.56$ | $13.68$ | $14.26$ | 0 | 0 |
+| 8 | $8 \times 8$ | $6.28 \times 10^{57}$ | $12.68$ | $14.31$ | $13.25$ | $12.18$ | 0 | 0 |
+| 9 | $9 \times 9$ | $1.96 \times 10^{77}$ | $20.03$ | $13.03$ | $12.11$ | $17.22$ | 0 | 0 |
+
+### 6.3. Análisis de Complejidad y Discusión Teórica (para el Informe IEEE)
+
+1. **Espacio de Búsqueda Combinatorio vs. Búsqueda Real:**
+   - El espacio de estados de fuerza bruta crece como $\mathcal{O}(n^{n^2})$. Para $n=9$, existen $\approx 1.96 \times 10^{77}$ configuraciones posibles (un orden de magnitud comparable con el número de átomos en el universo observable).
+   - Sin embargo, las ramas exploradas por el solver CP-SAT son **$0$ en prácticamente todas las instancias**. Esto demuestra que la combinación de restricciones globales `AllDifferent` con las restricciones de jaula permite deducir la solución directamente en el **nodo raíz** (*root node deduction*) mediante consistencia de arco y *bounds propagation*, sin requerir ramificación exploratoria (*backtracking*).
+2. **Impacto de las Restricciones de Tabla (Variante B):**
+   - Para $n=9$, la Variante B resolvió en **$12.11\text{ ms}$**, superando a la Variante A sin redundancia ($20.03\text{ ms}$). La consistencia de arco generalizada (GAC) sobre el scope completo de las jaulas poda valores imposibles de forma más agresiva en problemas de mayor dimensión.
+3. **Efecto de Restricciones Redundantes:**
+   - Para tableros pequeños ($n \le 4$), agregar la suma redundante $\sum = n(n+1)/2$ agrega una ligera sobrecarga de propagación ($\sim 5\text{ ms}$). Para tableros mayores ($n=9$), la restricción redundante acelera la variante aritmética de $20.03\text{ ms}$ a $13.03\text{ ms}$.
+
+### 6.4. Figuras Generadas
+
+La figura [`results/figs/cp_benchmark.png`](../results/figs/cp_benchmark.png) resume gráficamente estos hallazgos en tres paneles de alta resolución:
+1. Curvas de tiempo de resolución vs $n$ por variante.
+2. Contraste entre el espacio de búsqueda teórico ($\log_{10}(n^{n^2})$) y el número de ramas reales exploradas.
+3. Gráfico de barras comparativo por dimensión de tablero.
+
+**Comando de regeneración:**
+```bash
+python -m kenken.benchmark --sizes 3 4 5 6 7 8 9 --repeats 3
+```
+
+
 
 

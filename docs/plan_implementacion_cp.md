@@ -39,20 +39,20 @@
   - [x] Estrategia "auto": intentar primero resolver con la lectura top-1 (Variante A); si resulta `INFEASIBLE`, ejecutar automáticamente Variante C (`solve_joint`).
   - [x] Validar que el flujo completo no requiera intervención manual.
 
-- [ ] **Tarea 5: Suite de Pruebas Unitarias Exhaustivas de CP**
-  - [ ] Crear/actualizar `tests/test_model.py` con pruebas para:
-    - Variante A vs Variante B (consistencia de resultados).
-    - Detección de instancias infactibles.
-    - Conteo de unicidad de soluciones (`has_unique_solution`).
-    - Robustez de la Variante C ante lecturas de OCR degradadas.
+- [x] **Tarea 5: Suite de Pruebas Unitarias Exhaustivas de CP**
+  - [x] Crear/actualizar `tests/test_model.py` con pruebas para:
+    - [x] Variante A vs Variante B (consistencia de resultados).
+    - [x] Detección de instancias infactibles.
+    - [x] Conteo de unicidad de soluciones (`has_unique_solution`).
+    - [x] Robustez de la Variante C ante lecturas de OCR degradadas.
 
-- [ ] **Tarea 6: Módulo de Benchmarking y Perfilado Experimental (`kenken/benchmark.py`)**
-  - [ ] Crear script para evaluar rendimiento variando:
-    - Tamaño de tablero $n \in \{3, 4, 5, 6, 7, 8, 9\}$.
-    - Variante de modelado: A, A+redundante, B.
-  - [ ] Registrar métricas: Wall time (ms), `NumBranches()`, `NumConflicts()`, número de variables booleanas/enteras.
-  - [ ] Exportar resultados a `results/cp_benchmark.csv`.
-  - [ ] Generar gráficos comparativos en `results/figs/cp_benchmark.png` (tiempo vs $n$, ramas vs $n$).
+- [x] **Tarea 6: Módulo de Benchmarking y Perfilado Experimental (`kenken/benchmark.py`)**
+  - [x] Crear script para evaluar rendimiento variando:
+    - [x] Tamaño de tablero $n \in \{3, 4, 5, 6, 7, 8, 9\}$.
+    - [x] Variante de modelado: A, A+redundante, B, B+redundante.
+  - [x] Registrar métricas: Wall time (ms), `NumBranches()`, `NumConflicts()`, número de jaulas.
+  - [x] Exportar resultados a `results/cp_benchmark.csv`.
+  - [x] Generar gráficos comparativos en `results/figs/cp_benchmark.png` (tiempo vs $n$, ramas vs $n$, comparativa).
 
 - [ ] **Tarea 7: Redacción del Modelo Formal y Análisis de Complejidad para el Informe LaTeX**
   - [ ] Redactar especificación formal $\langle X, D, C \rangle$ con LaTeX.
