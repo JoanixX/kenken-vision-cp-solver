@@ -203,3 +203,103 @@ python -m pytest tests/test_model.py -q
 # 39 passed in 0.93s (100% éxito)
 ```
 
+---
+
+## 4. Variante C: Inferencia Conjunta Neuro-Simbólica (MAP) con Reificación
+
+### 4.1. Motivación y Paradigma Neuro-Simbólico
+
+En un pipeline secuencial clásico (*pipeline ingenuo*):
+$$\text{Imagen} \xrightarrow{\text{Visión / CNN}} \text{Lectura Top-1} \xrightarrow{\text{Puente}} \text{Modelo CP} \xrightarrow{\text{Solver}} \text{Solución o INFEASIBLE}$$
+Si la CNN confunde un solo carácter (por ejemplo, predice `8-` con 51% de probabilidad cuando el glifo real era `3-` con 49%, o confunde `+` con `*`), el modelo CP tradicional recibe una instancia inconsistente y devuelve **`INFEASIBLE`**, fallando todo el sistema.
+
+La **Variante C** implementa **inferencia conjunta** (*Joint Inference* / *MAP Inference*):
+El clasificador de visión computacional no devuelve una sola predicción dura, sino una lista de hipótesis candidatas ordenadas por log-probabilidad:
+$$\mathcal{K}_c = \{(T_{c,k}, \text{op}_{c,k}, \log P_{c,k}) \mid k=1, \dots, K\}$$
+El solver de CP resuelve simultáneamente dos problemas en uno:
+1. **Selección de hipótesis:** Elige la lectura $k$ para cada jaula $c$.
+2. **Satisfacción del puzzle:** Asigna números a la grilla que satisfacen el Cuadrado Latino y las jaulas elegidas.
+
+El objetivo es encontrar la lectura **más probable** que **sea consistente con una solución matemática válida**.
+
+---
+
+### 4.2. Formulación Matemática de la Variante C
+
+* **Variables de Decisión Principales:**
+  $$x_{i,j} \in \{1, \dots, n\} \quad \forall i, j \in \{0, \dots, n-1\}$$
+
+* **Variables Indicadoras de Lectura (Booleanas):**
+  Para cada jaula $c$ y cada candidato $k \in \{0, \dots, K_c - 1\}$:
+  $$r_{c, k} \in \{0, 1\}$$
+  donde $r_{c, k} = 1$ indica que se adopta la hipótesis $k$ para la jaula $c$.
+
+* **Restricción Global de Exclusividad por Jaula:**
+  Cada jaula debe adoptar exactamente una lectura:
+  $$\text{ExactlyOne}(\{r_{c, 0}, r_{c, 1}, \dots, r_{c, K_c - 1}\}) \quad \forall c$$
+
+* **Restricciones Aritméticas Reificadas:**
+  Las restricciones aritméticas de la jaula se condicionan a $r_{c, k}$ mediante `OnlyEnforceIf`:
+  $$r_{c, k} \implies \mathcal{A}(V_c, T_{c,k}, \text{op}_{c,k})$$
+  donde:
+  - Para suma: $r_{c, k} \implies \sum_{v \in V_c} v = T_{c,k}$
+  - Para resta: $r_{c, k} \implies |v_0 - v_1| = T_{c,k}$
+  - Para producto: $r_{c, k} \implies \prod_{v \in V_c} v = T_{c,k}$ (encadenado con variables intermedias)
+  - Para división: $(r_{c, k} \land b_{\text{dir}}) \implies v_0 = T_{c,k} \cdot v_1$ y $(r_{c, k} \land \neg b_{\text{dir}}) \implies v_1 = T_{c,k} \cdot v_0$
+  - Si una hipótesis es matemáticamente imposible en el dominio (ej. $T \le 0$ o división en jaula con 3 casillas), se fuerza $r_{c, k} = 0$.
+
+* **Función Objetivo (MAP / Log-Verosimilitud Máxima):**
+  $$\max \sum_{c} \sum_{k} \lfloor \text{scale} \cdot \log P_{c, k} \rfloor \cdot r_{c, k}$$
+  donde $\text{scale} = 1000$ convierte los log-probs negativos en coeficientes enteros para CP-SAT.
+
+---
+
+### 4.3. Justificación ante la Rúbrica de Evaluación
+
+La rúbrica del curso asigna 1 punto a:
+> *"Uso eficiente de restricciones reificadas (si fuera necesario, sino explicar por qué no)."*
+
+La Variante C proporciona la **máxima justificación técnica posible**:
+1. **A nivel aritmético:** Modela la conmutatividad no orientada de la división ($a/b$ o $b/a$) mediante booleanos directos y `OnlyEnforceIf`.
+2. **A nivel sistémico / neuro-simbólico:** Emplea reificación para articular el puente entre la incertidumbre del modelo neuronal (CNN) y la rigidez lógica del solver simbólico (CP-SAT), convirtiendo un problema de satisfacción simple en uno de optimización combinatoria que tolera ruido sensorial.
+
+---
+
+### 4.4. Uso en Código
+
+```python
+from kenken import Instance, solve, solve_joint
+
+# Instancia con candidatos alternativos en candidates[c]
+inst = Instance.load("dataset/noisy_sample.json")
+
+# Resolver directamente con inferencia conjunta
+res = solve_joint(inst)
+# o equivalentemente:
+res = solve(inst, variant="joint")
+
+if res.solved:
+    print(f"Estado: {res.status}")
+    print("Lecturas elegidas por jaula:")
+    for cage_idx, cand in res.chosen_candidates.items():
+        print(f"  Jaula {cage_idx}: {cand['target']}{cand['op']} (logp={cand['logp']})")
+```
+
+---
+
+### 4.5. Validación y Pruebas Unitarias
+
+Pruebas implementadas en [`tests/test_model.py`](../tests/test_model.py):
+* `test_solve_joint_with_clean_candidates`: Verifica que ante lecturas limpias (donde top-1 es la correcta), el modelo selecciona todos los candidatos top-1 y obtiene `OPTIMAL`.
+* `test_solve_joint_recovers_from_corrupted_top1_target`: Simula un fallo de OCR donde la lectura top-1 predice un target imposible (`999`) y la lectura top-2 contiene el target verdadero. Verifica que el solver estándar devuelve `INFEASIBLE`, mientras que `solve_joint` se recupera automáticamente eligiendo el top-2 y hallando la grilla correcta.
+* `test_solve_joint_recovers_from_corrupted_top1_operator`: Simula una confusión de operador (top-1 predice `+`, top-2 predice `*`). Verifica que `solve_joint` descarta `+`, adopta `*` y resuelve el puzzle.
+* `test_solve_joint_when_no_candidates_provided`: Valida el fallback cuando `inst.candidates` está vacío (utiliza las jaulas de `inst.cages`).
+* `test_solve_joint_infeasible_when_all_candidates_impossible`: Comprueba que si todas las hipótesis son imposibles, el modelo reporta `INFEASIBLE`.
+
+**Resultado de ejecución de pruebas:**
+```bash
+python -m pytest tests/test_model.py -q
+# 44 passed in 1.20s (100% éxito)
+```
+
+

@@ -18,6 +18,7 @@ from kenken.model import (
     find_solutions,
     has_unique_solution,
     solve,
+    solve_joint,
     solve_table,
 )
 
@@ -179,5 +180,93 @@ def test_solve_invalid_variant():
     inst = Instance.load(EXAMPLES[0])
     with pytest.raises(ValueError, match="Variante desconocida"):
         solve(inst, variant="nonexistent")
+
+
+def test_solve_joint_with_clean_candidates():
+    inst = Instance.load(EXAMPLES[0])
+    cands = {
+        c_idx: [{"target": cage.target, "op": cage.op, "logp": 0.0}]
+        for c_idx, cage in enumerate(inst.cages)
+    }
+    inst_with_cands = Instance(inst.n, inst.cages, cands)
+    res = solve_joint(inst_with_cands)
+    assert res.status == "OPTIMAL"
+    assert check_solution(inst, res.grid)
+    assert res.chosen_candidates is not None
+    for c_idx in range(len(inst.cages)):
+        assert res.chosen_candidates[c_idx]["target"] == inst.cages[c_idx].target
+
+
+def test_solve_joint_recovers_from_corrupted_top1_target():
+    inst = Instance.load(EXAMPLES[1])  # 4x4 instance
+    true_sol = solve(inst).grid
+
+    true_cage = inst.cages[0]
+    corrupted_cages = list(inst.cages)
+    corrupted_cages[0] = Cage(true_cage.cells, 999, true_cage.op)
+
+    cands = {
+        0: [
+            {"target": 999, "op": true_cage.op, "logp": -0.01},  # corrupto
+            {"target": true_cage.target, "op": true_cage.op, "logp": -0.80},  # correcto
+        ]
+    }
+    for c_idx in range(1, len(inst.cages)):
+        c = inst.cages[c_idx]
+        cands[c_idx] = [{"target": c.target, "op": c.op, "logp": 0.0}]
+
+    noisy_inst = Instance(inst.n, corrupted_cages, cands)
+
+    res_direct = solve(noisy_inst, variant="arithmetic")
+    assert res_direct.status == "INFEASIBLE"
+
+    res_joint = solve_joint(noisy_inst)
+    assert res_joint.status == "OPTIMAL"
+    assert res_joint.grid == true_sol
+    assert res_joint.chosen_candidates[0]["target"] == true_cage.target
+
+
+def test_solve_joint_recovers_from_corrupted_top1_operator():
+    inst = Instance.load(EXAMPLES[1])
+    true_sol = solve(inst).grid
+
+    prod_idx = [i for i, c in enumerate(inst.cages) if c.op == "*"][0]
+    true_cage = inst.cages[prod_idx]
+
+    corrupted_cages = list(inst.cages)
+    corrupted_cages[prod_idx] = Cage(true_cage.cells, true_cage.target, "+")
+
+    cands = {
+        prod_idx: [
+            {"target": true_cage.target, "op": "+", "logp": -0.05},
+            {"target": true_cage.target, "op": "*", "logp": -0.50},
+        ]
+    }
+    for c_idx in range(len(inst.cages)):
+        if c_idx != prod_idx:
+            c = inst.cages[c_idx]
+            cands[c_idx] = [{"target": c.target, "op": c.op, "logp": 0.0}]
+
+    noisy_inst = Instance(inst.n, corrupted_cages, cands)
+    res_joint = solve(noisy_inst, variant="joint")
+    assert res_joint.status == "OPTIMAL"
+    assert res_joint.grid == true_sol
+    assert res_joint.chosen_candidates[prod_idx]["op"] == "*"
+
+
+def test_solve_joint_when_no_candidates_provided():
+    inst = Instance.load(EXAMPLES[0])
+    inst_no_cands = Instance(inst.n, inst.cages, {})
+    res = solve_joint(inst_no_cands)
+    assert res.status == "OPTIMAL"
+    assert check_solution(inst, res.grid)
+
+
+def test_solve_joint_infeasible_when_all_candidates_impossible():
+    inst = Instance.load(EXAMPLES[0])
+    cands = {0: [{"target": 999, "op": "+", "logp": 0.0}]}
+    inst_bad = Instance(inst.n, inst.cages, cands)
+    assert solve_joint(inst_bad).status == "INFEASIBLE"
+
 
 

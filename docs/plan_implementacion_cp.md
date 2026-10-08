@@ -28,11 +28,11 @@
   - [x] Integrar `AddAllowedAssignments` para cada jaula.
   - [x] Pruebas de equivalencia: verificar que Variante B entrega la misma solución que Variante A en todos los ejemplos de `examples/`.
 
-- [ ] **Tarea 3: Implementación de la Variante C (`solve_joint`) e Inferencia Conjunta**
-  - [ ] Implementar `add_reified_cage_constraint(model, x, cage, r_var, name)` en `kenken/model.py`.
-  - [ ] Implementar `build_model_joint(inst)` y `solve_joint(inst, ...)` en `kenken/model.py`.
-  - [ ] Soportar función objetivo ponderada por $\log P$ de la CNN.
-  - [ ] Pruebas con ruido simulado: forzar un error en el target u operador top-1 y verificar que el solver recupera la solución correcta usando el top-$k$.
+- [x] **Tarea 3: Implementación de la Variante C (`solve_joint`) e Inferencia Conjunta**
+  - [x] Implementar `add_reified_cage_constraint(model, x, cage, r_var, name)` en `kenken/model.py`.
+  - [x] Implementar `build_model_joint(inst)` y `solve_joint(inst, ...)` en `kenken/model.py`.
+  - [x] Soportar función objetivo ponderada por $\log P$ de la CNN.
+  - [x] Pruebas con ruido simulado: forzar un error en el target u operador top-1 y verificar que el solver recupera la solución correcta usando el top-$k$.
 
 - [ ] **Tarea 4: Integración en el Pipeline End-to-End con Fallback Automático**
   - [ ] Actualizar `kenken/pipeline.py` para definir `solve_image(path, method="auto", ...)`.
