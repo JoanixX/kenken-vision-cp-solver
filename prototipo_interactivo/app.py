@@ -137,64 +137,71 @@ def build_app() -> gr.Blocks:
     )
 
     sample_dir = ROOT_DIR / "sample_images"
-    cases_def = [
-        (
-            "caso1_lectura_directa_4x4.png",
-            "auto",
-            "composite",
-            "🟢 Caso 1: Lectura Directa (4x4)",
-        ),
-        (
-            "caso2_rescate_map_4x4.jpg",
-            "auto",
-            "composite",
-            "⚡ Caso 2: Rescate MAP (4x4)",
-        ),
-        (
-            "caso3_perspectiva_rotacion_5x5.jpg",
-            "auto",
-            "composite",
-            "📐 Caso 3: Perspectiva y Rotación (5x5)",
-        ),
-        (
-            "caso4_alta_dificultad_6x6.jpg",
-            "auto",
-            "composite",
-            "🧩 Caso 4: Alta Dificultad (6x6)",
-        ),
-        (
-            "caso5_gran_escala_9x9.png",
-            "auto",
-            "composite",
-            "🏆 Caso 5: Gran Escala (9x9)",
-        ),
-        (
-            "caso6_rescate_avanzado_6x6.jpg",
-            "auto",
-            "composite",
-            "⚡ Caso 6: Rescate Avanzado 3 jaulas (6x6)",
-        ),
-        (
-            "caso7_aviso_ajustes_multiples_6x6.jpg",
-            "auto",
-            "composite",
-            "🟡 Caso 7: Aviso (Múltiples Ajustes)",
-        ),
-        (
-            "caso8_infactible_contradictorio.jpg",
-            "auto",
-            "composite",
-            "❌ Caso 8: Tablero Infactible",
-        ),
+    category_groups = [
+        {
+            "name": "🟢 1. Lectura Directa",
+            "desc": "Imágenes digitales nítidas donde la percepción visual (Top-1) acierta al 100% y CP-SAT resuelve en <0.2 s sin requerir fallback.",
+            "examples": [
+                ["tipo1_directo_3x3.png", "auto", "composite", "Directo 3×3 (Nítido)"],
+                ["tipo1_directo_4x4.png", "auto", "composite", "Directo 4×4 (Nítido)"],
+                ["tipo1_directo_5x5.jpg", "auto", "composite", "Directo 5×5 (Nítido)"],
+            ],
+        },
+        {
+            "name": "⚡ 2. Rescate MAP (Ambigüedad)",
+            "desc": "Ambigüedad leve en operadores (+ vs /) donde la inferencia conjunta (Variante C) deduce la operación correcta por consistencia lógica.",
+            "examples": [
+                ["tipo2_map_3x3.jpg", "auto", "composite", "MAP 3×3 (1 corrección)"],
+                ["tipo2_map_4x4.jpg", "auto", "composite", "MAP 4×4 (1 corrección)"],
+                ["tipo2_map_5x5.jpg", "auto", "composite", "MAP 5×5 (2 correcciones)"],
+            ],
+        },
+        {
+            "name": "📐 3. Perspectiva y Rotación",
+            "desc": "Fotografías con perspectiva angular, inclinación y distorsión geométrica, rectificadas por homografía en OpenCV.",
+            "examples": [
+                ["tipo3_perspectiva_4x4.jpg", "auto", "composite", "Perspectiva 4×4 (Ángulo)"],
+                ["tipo3_perspectiva_5x5.jpg", "auto", "composite", "Perspectiva 5×5 (Inclinación)"],
+                ["tipo3_perspectiva_6x6.jpg", "auto", "composite", "Perspectiva 6×6 (Rotación)"],
+            ],
+        },
+        {
+            "name": "🏆 4. Gran Escala y Complejidad",
+            "desc": "Tableros de alta dimensión y densidad combinatoria (6×6 a 9×9) con multiplicaciones grandes (e.g. 240*), demostrando la escalabilidad de CP-SAT.",
+            "examples": [
+                ["tipo4_gran_escala_6x6.jpg", "auto", "composite", "Gran Escala 6×6"],
+                ["tipo4_gran_escala_9x9_foto.jpg", "auto", "composite", "Foto Compleja 9×9"],
+                ["tipo4_gran_escala_9x9_limpio.png", "auto", "composite", "Experto Oficial 9×9"],
+            ],
+        },
+        {
+            "name": "⚡ 5. Rescate Avanzado en Estrés",
+            "desc": "Casos de estrés extremo donde MAP rescata simultáneamente 1, 2 y hasta 3 jaulas borrosas con 100% de coincidencia exacta con el Ground Truth.",
+            "examples": [
+                ["tipo5_rescate_estres_1cambio.jpg", "auto", "composite", "Rescate 1 Jaula (93.3% fid.)"],
+                ["tipo5_rescate_estres_2cambios.jpg", "auto", "composite", "Rescate 2 Jaulas (90.9% fid.)"],
+                ["tipo5_rescate_estres_3cambios.jpg", "auto", "composite", "Rescate 3 Jaulas (82.4% fid.)"],
+            ],
+        },
+        {
+            "name": "🟡 6. Aviso (Múltiples Ajustes)",
+            "desc": "Imágenes con degradación severa donde el solver encuentra solución pero emite un aviso amarillo preventivo recomendando verificar el impreso.",
+            "examples": [
+                ["tipo6_aviso_ajustes_7jaulas.jpg", "auto", "composite", "Aviso 7 Ajustes (63.2% fid.)"],
+                ["tipo6_aviso_ajustes_8jaulas.jpg", "auto", "composite", "Aviso 8 Ajustes (52.9% fid.)"],
+                ["tipo6_aviso_ajustes_14jaulas.jpg", "auto", "composite", "Aviso 14 Ajustes (46.2% fid.)"],
+            ],
+        },
+        {
+            "name": "❌ 7. Infactible (Contradicciones)",
+            "desc": "Tableros con contradicciones matemáticas insolubles donde el solver diagnostica formalmente la condición INFEASIBLE.",
+            "examples": [
+                ["tipo7_infactible_muestra1.jpg", "auto", "composite", "Infactible Muestra 1"],
+                ["tipo7_infactible_muestra2.jpg", "auto", "composite", "Infactible Muestra 2"],
+                ["tipo7_infactible_muestra3.jpg", "auto", "composite", "Infactible Muestra 3"],
+            ],
+        },
     ]
-
-    valid_examples = []
-    example_labels = []
-    for fname, method, mode, label in cases_def:
-        fpath = sample_dir / fname
-        if fpath.exists():
-            valid_examples.append([str(fpath), method, mode])
-            example_labels.append(label)
 
     with gr.Blocks(title="KenKen Vision-CP Solver") as demo:
         gr.Markdown(
@@ -236,34 +243,29 @@ def build_app() -> gr.Blocks:
                 image_output = gr.Image(label="Solución Visual Resuelta", type="numpy")
                 metrics_output = gr.Markdown("*(Los resultados y estadísticas aparecerán aquí tras la ejecución)*")
 
-        if valid_examples:
-            gr.Markdown("---")
-            gr.Markdown("### 📂 Casos de Prueba Demostrativos")
-            gr.Markdown(
-                """
-                Selecciona cualquiera de las muestras por defecto para evaluar el comportamiento del sistema ante distintos escenarios reales:
-
-                | Caso Demostrativo | Tipo de Reto / Escenario | Comportamiento del Solver y Visión |
-                |---|---|---|
-                | 🟢 **Caso 1: Lectura Directa (4x4)** | Imagen digital nítida | Resolución inmediata en Top-1 visual (<0.2 s, sin necesidad de fallback). |
-                | ⚡ **Caso 2: Rescate Neuro-Simbólico MAP (4x4)** | Ambigüedad visual en 1 operador | Corrección automática: la inferencia conjunta deduce el operador correcto por restricciones lógicas. |
-                | 📐 **Caso 3: Perspectiva y Rotación (5x5)** | Fotografía real con ángulo e inclinación | Rectificación geométrica por homografía y corrección de perspectiva OpenCV. |
-                | 🧩 **Caso 4: Alta Dificultad (6x6)** | Tablero denso y operaciones grandes | Jaulas de 3-4 celdas, multiplicaciones complejas (`240*`) y deducción combinatoria. |
-                | 🏆 **Caso 5: Gran Escala (9x9)** | Tablero experto de 81 celdas | 27+ jaulas; demuestra la escalabilidad polinomial del solver CP-SAT de Google OR-Tools. |
-                | ⚡ **Caso 6: Rescate Avanzado 3 Jaulas (6x6)** | 3 etiquetas con sombras/artefactos | Demuestra el poder de MAP: rescata simultáneamente 3 etiquetas (`18*`➔`180*`, etc.) logrando **100% de coincidencia exacta con el impreso**. |
-                | 🟡 **Caso 7: Aviso Informativo (Múltiples Ajustes)** | Degradación severa (7 jaulas ajustadas) | Muestra la solución encontrada pero emite un aviso amarillo de verificación para alertar al usuario sin censurar el resultado. |
-                | ❌ **Caso 8: Tablero Infactible** | Contradicción matemática insoluble | Diagnóstico formal de infactibilidad (`INFEASIBLE`) reportado transparentemente. |
-                """
-            )
-            gr.Examples(
-                examples=valid_examples,
-                example_labels=example_labels,
-                inputs=[image_input, method_input, render_input],
-                outputs=[image_output, metrics_output],
-                fn=resolver_kenken,
-                cache_examples=False,
-                label="Haz clic en cualquier caso para cargarlo en la interfaz:",
-            )
+        gr.Markdown("---")
+        gr.Markdown("### 📂 Catálogo Demostrativo por Categorías (3 Imágenes por Tipo de Muestra)")
+        with gr.Tabs():
+            for group in category_groups:
+                with gr.Tab(group["name"]):
+                    gr.Markdown(f"*{group['desc']}*")
+                    valid_ex = []
+                    labels = []
+                    for fname, method, mode, lbl in group["examples"]:
+                        fpath = sample_dir / fname
+                        if fpath.exists():
+                            valid_ex.append([str(fpath), method, mode])
+                            labels.append(lbl)
+                    if valid_ex:
+                        gr.Examples(
+                            examples=valid_ex,
+                            example_labels=labels,
+                            inputs=[image_input, method_input, render_input],
+                            outputs=[image_output, metrics_output],
+                            fn=resolver_kenken,
+                            cache_examples=False,
+                            label="Haz clic en cualquier muestra para probar inmediatamente:",
+                        )
 
         btn_solve.click(
             fn=resolver_kenken,

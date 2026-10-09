@@ -96,16 +96,36 @@ def test_resolver_kenken_infeasible():
 
 
 def test_all_showcase_cases_exist():
-    """Verifica que las imágenes de muestra para los casos del prototipo existan y sean válidas."""
+    """Verifica que las imágenes de muestra para los 7 tipos (3 por tipo = 21 imágenes) existan y sean válidas."""
     expected_cases = [
-        "caso1_lectura_directa_4x4.png",
-        "caso2_rescate_map_4x4.jpg",
-        "caso3_perspectiva_rotacion_5x5.jpg",
-        "caso4_alta_dificultad_6x6.jpg",
-        "caso5_gran_escala_9x9.png",
-        "caso6_rescate_avanzado_6x6.jpg",
-        "caso7_aviso_ajustes_multiples_6x6.jpg",
-        "caso8_infactible_contradictorio.jpg",
+        # Tipo 1: Lectura Directa
+        "tipo1_directo_3x3.png",
+        "tipo1_directo_4x4.png",
+        "tipo1_directo_5x5.jpg",
+        # Tipo 2: Rescate Neuro-Simbólico MAP
+        "tipo2_map_3x3.jpg",
+        "tipo2_map_4x4.jpg",
+        "tipo2_map_5x5.jpg",
+        # Tipo 3: Perspectiva y Rotación
+        "tipo3_perspectiva_4x4.jpg",
+        "tipo3_perspectiva_5x5.jpg",
+        "tipo3_perspectiva_6x6.jpg",
+        # Tipo 4: Gran Escala y Complejidad
+        "tipo4_gran_escala_6x6.jpg",
+        "tipo4_gran_escala_9x9_foto.jpg",
+        "tipo4_gran_escala_9x9_limpio.png",
+        # Tipo 5: Rescate Avanzado en Estrés
+        "tipo5_rescate_estres_1cambio.jpg",
+        "tipo5_rescate_estres_2cambios.jpg",
+        "tipo5_rescate_estres_3cambios.jpg",
+        # Tipo 6: Aviso Informativo (Múltiples Ajustes)
+        "tipo6_aviso_ajustes_7jaulas.jpg",
+        "tipo6_aviso_ajustes_8jaulas.jpg",
+        "tipo6_aviso_ajustes_14jaulas.jpg",
+        # Tipo 7: Detección de Infactibilidad
+        "tipo7_infactible_muestra1.jpg",
+        "tipo7_infactible_muestra2.jpg",
+        "tipo7_infactible_muestra3.jpg",
     ]
     sample_dir = Path("prototipo_interactivo/sample_images")
     for case_name in expected_cases:
