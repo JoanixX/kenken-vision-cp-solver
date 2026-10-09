@@ -133,8 +133,8 @@ def build_app() -> gr.Blocks:
     sample_dir = ROOT_DIR / "sample_images"
     sample_files = [
         str(sample_dir / "kenken_3x3.jpg"),
-        str(sample_dir / "kenken_4x4.png"),
-        str(sample_dir / "kenken_5x5.jpg"),
+        str(sample_dir / "kenken_4x4_desafio_map.jpg"),
+        str(sample_dir / "kenken_5x5_desafio_map.jpg"),
         str(sample_dir / "kenken_6x6.jpg"),
         str(sample_dir / "kenken_9x9.png"),
     ]

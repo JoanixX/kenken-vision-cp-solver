@@ -1,0 +1,471 @@
+{
+  "dataset_name": "Challenge Stress Dataset",
+  "total_samples": 50,
+  "generation_time_s": 213.12,
+  "seed": 42,
+  "criteria": "Direct Top-1 reading is NOT 100% consistent (fallback_used==True or status!=solved)",
+  "summary": {
+    "map_correction_count": 50,
+    "severe_ambiguity_count": 0,
+    "size_distribution": {
+      "3": 1,
+      "4": 2,
+      "5": 9,
+      "6": 13,
+      "7": 12,
+      "8": 13
+    }
+  },
+  "samples": [
+    {
+      "id": 0,
+      "file": "stress_00000.jpg",
+      "n": 8,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 28
+    },
+    {
+      "id": 1,
+      "file": "stress_00001.jpg",
+      "n": 4,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 8
+    },
+    {
+      "id": 2,
+      "file": "stress_00002.jpg",
+      "n": 6,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 17
+    },
+    {
+      "id": 3,
+      "file": "stress_00003.jpg",
+      "n": 5,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 11
+    },
+    {
+      "id": 4,
+      "file": "stress_00004.jpg",
+      "n": 8,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 26
+    },
+    {
+      "id": 5,
+      "file": "stress_00005.jpg",
+      "n": 7,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 19
+    },
+    {
+      "id": 6,
+      "file": "stress_00006.jpg",
+      "n": 7,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 22
+    },
+    {
+      "id": 7,
+      "file": "stress_00007.jpg",
+      "n": 5,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 12
+    },
+    {
+      "id": 8,
+      "file": "stress_00008.jpg",
+      "n": 7,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 20
+    },
+    {
+      "id": 9,
+      "file": "stress_00009.jpg",
+      "n": 7,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 21
+    },
+    {
+      "id": 10,
+      "file": "stress_00010.jpg",
+      "n": 5,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 9
+    },
+    {
+      "id": 11,
+      "file": "stress_00011.jpg",
+      "n": 6,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 17
+    },
+    {
+      "id": 12,
+      "file": "stress_00012.jpg",
+      "n": 6,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 15
+    },
+    {
+      "id": 13,
+      "file": "stress_00013.jpg",
+      "n": 6,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 16
+    },
+    {
+      "id": 14,
+      "file": "stress_00014.jpg",
+      "n": 6,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 16
+    },
+    {
+      "id": 15,
+      "file": "stress_00015.jpg",
+      "n": 6,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 15
+    },
+    {
+      "id": 16,
+      "file": "stress_00016.jpg",
+      "n": 7,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 22
+    },
+    {
+      "id": 17,
+      "file": "stress_00017.jpg",
+      "n": 6,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 18
+    },
+    {
+      "id": 18,
+      "file": "stress_00018.jpg",
+      "n": 8,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "FEASIBLE",
+      "corrections": 30
+    },
+    {
+      "id": 19,
+      "file": "stress_00019.jpg",
+      "n": 7,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 19
+    },
+    {
+      "id": 20,
+      "file": "stress_00020.jpg",
+      "n": 5,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 11
+    },
+    {
+      "id": 21,
+      "file": "stress_00021.jpg",
+      "n": 6,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 16
+    },
+    {
+      "id": 22,
+      "file": "stress_00022.jpg",
+      "n": 8,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 26
+    },
+    {
+      "id": 23,
+      "file": "stress_00023.jpg",
+      "n": 5,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 12
+    },
+    {
+      "id": 24,
+      "file": "stress_00024.jpg",
+      "n": 6,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 16
+    },
+    {
+      "id": 25,
+      "file": "stress_00025.jpg",
+      "n": 7,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 22
+    },
+    {
+      "id": 26,
+      "file": "stress_00026.jpg",
+      "n": 8,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 26
+    },
+    {
+      "id": 27,
+      "file": "stress_00027.jpg",
+      "n": 6,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 16
+    },
+    {
+      "id": 28,
+      "file": "stress_00028.jpg",
+      "n": 8,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 28
+    },
+    {
+      "id": 29,
+      "file": "stress_00029.jpg",
+      "n": 7,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 22
+    },
+    {
+      "id": 30,
+      "file": "stress_00030.jpg",
+      "n": 8,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 29
+    },
+    {
+      "id": 31,
+      "file": "stress_00031.jpg",
+      "n": 7,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 23
+    },
+    {
+      "id": 32,
+      "file": "stress_00032.jpg",
+      "n": 6,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 16
+    },
+    {
+      "id": 33,
+      "file": "stress_00033.jpg",
+      "n": 8,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 30
+    },
+    {
+      "id": 34,
+      "file": "stress_00034.jpg",
+      "n": 8,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 30
+    },
+    {
+      "id": 35,
+      "file": "stress_00035.jpg",
+      "n": 6,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 17
+    },
+    {
+      "id": 36,
+      "file": "stress_00036.jpg",
+      "n": 7,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 19
+    },
+    {
+      "id": 37,
+      "file": "stress_00037.jpg",
+      "n": 8,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 28
+    },
+    {
+      "id": 38,
+      "file": "stress_00038.jpg",
+      "n": 5,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 12
+    },
+    {
+      "id": 39,
+      "file": "stress_00039.jpg",
+      "n": 7,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 22
+    },
+    {
+      "id": 40,
+      "file": "stress_00040.jpg",
+      "n": 6,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 17
+    },
+    {
+      "id": 41,
+      "file": "stress_00041.jpg",
+      "n": 4,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 7
+    },
+    {
+      "id": 42,
+      "file": "stress_00042.jpg",
+      "n": 8,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 30
+    },
+    {
+      "id": 43,
+      "file": "stress_00043.jpg",
+      "n": 8,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 28
+    },
+    {
+      "id": 44,
+      "file": "stress_00044.jpg",
+      "n": 5,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 11
+    },
+    {
+      "id": 45,
+      "file": "stress_00045.jpg",
+      "n": 5,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 11
+    },
+    {
+      "id": 46,
+      "file": "stress_00046.jpg",
+      "n": 3,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 5
+    },
+    {
+      "id": 47,
+      "file": "stress_00047.jpg",
+      "n": 8,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 30
+    },
+    {
+      "id": 48,
+      "file": "stress_00048.jpg",
+      "n": 5,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 12
+    },
+    {
+      "id": 49,
+      "file": "stress_00049.jpg",
+      "n": 7,
+      "challenge_type": "map_correction",
+      "fallback_used": true,
+      "status": "OPTIMAL",
+      "corrections": 20
+    }
+  ]
+}

@@ -75,7 +75,11 @@ def evaluate_structure(dataset_dir: str | Path, out_csv: str | Path | None = Non
                        use_labels: bool = True) -> list[dict]:
     rows = []
     for js in sorted(Path(dataset_dir).glob("*.json")):
+        if js.name == "manifest.json":
+            continue
         gt = json.loads(js.read_text("utf-8"))
+        if "cages" not in gt:
+            continue
         img_name = gt.get("image", {}).get("file")
         img_path = js.parent / img_name if img_name else next(
             p for p in js.parent.glob(js.stem + ".*") if p.suffix.lower() != ".json")
@@ -135,7 +139,11 @@ def evaluate_ocr(dataset_dir: str | Path, out_csv: str | Path | None = None, k: 
     rows = []
     confusion = np.zeros((len(CLASSES), len(CLASSES)), int)
     for js in sorted(Path(dataset_dir).glob("*.json")):
+        if js.name == "manifest.json":
+            continue
         gt = json.loads(js.read_text("utf-8"))
+        if "cages" not in gt:
+            continue
         img_path = _image_path(js, gt)
         row = {"image": img_path.name, "kind": gt.get("image", {}).get("kind", "real"),
                "n": gt["n"], "labels": len(gt["cages"])}
@@ -214,7 +222,11 @@ def _same_instance(gt: dict, inst) -> bool:
 def evaluate_end2end(dataset_dir: str | Path, out_csv: str | Path | None = None) -> list[dict]:
     rows = []
     for js in sorted(Path(dataset_dir).glob("*.json")):
+        if js.name == "manifest.json":
+            continue
         gt = json.loads(js.read_text("utf-8"))
+        if "cages" not in gt:
+            continue
         img_path = _image_path(js, gt)
         t = time.perf_counter()
         r = solve_image(img_path)
