@@ -39,21 +39,6 @@ def resolver_kenken(image: np.ndarray | None, method: str = "auto", render_mode:
         resultado = solve_image(img_bgr, method=method, render_mode=render_mode)
 
         if not resultado.solved or resultado.grid is None:
-            if getattr(resultado, "divergent", False):
-                sol_bgr = resultado.render_solution(mode=render_mode)
-                sol_rgb = cv2.cvtColor(sol_bgr, cv2.COLOR_BGR2RGB)
-                num_c = resultado.num_changed
-                max_a = resultado.max_allowed_changes
-                return (
-                    sol_rgb,
-                    f"### ⚠️ Advertencia: Lectura Visual No Fidedigna (Abstención Confiable)\n\n"
-                    f"- **Estado Oficial:** `UNRELIABLE_DETECTION`\n"
-                    f"- **Inconsistencias:** Se requirieron **{num_c} correcciones** de jaulas (límite de seguridad: **{max_a}**).\n\n"
-                    f"Para no entregarte un acertijo inventado que no coincide con el impreso original, "
-                    f"**el sistema se abstiene de proclamar éxito**.\n\n"
-                    f"💡 **Sugerencia:** Toma una fotografía con encuadre frontal, iluminación uniforme y sin sombras sobre las etiquetas.\n\n"
-                    f"*(Nota: La imagen adjunta muestra la solución matemática hipotética encontrada por el solver, pero difiere del impreso original).* ",
-                )
             return (
                 None,
                 f"❌ **No se pudo encontrar una solución válida.**\n\n"
@@ -81,32 +66,37 @@ def resolver_kenken(image: np.ndarray | None, method: str = "auto", render_mode:
                 if ch_target != t1_target or ch_op != t1_op:
                     cells_str = ", ".join(f"({r},{c})" for r, c in resultado.instance.cages[c_idx].cells)
                     corrections.append(
-                        f"- **Jaula {c_idx}** [{cells_str}]: Top-1 visual `{t1_target}{t1_op}` ➔ Corregido a `{ch_target}{ch_op}`"
+                        f"- **Jaula {c_idx}** [{cells_str}]: Top-1 visual `{t1_target}{t1_op}` ➔ Ajustado a `{ch_target}{ch_op}`"
                     )
 
-        if resultado.fallback_used:
-            num_corr = len(corrections)
-            if num_corr <= 2:
-                conf_badge = f"🟢 **Confianza Alta:** Se corrigieron {num_corr} lectura(s) ambigua(s)."
-            else:
-                conf_badge = (
-                    f"⚠️ **Alerta de Posible Divergencia:** Se corrigieron {num_corr} jaulas respecto a la imagen original. "
-                    f"Si la etiqueta real no estaba en los candidatos del OCR, la solución podría ser una variante válida diferente al impreso."
-                )
-            corr_details = "\n".join(corrections) if corrections else "*(Sin cambios sobre top-1)*"
-            diagnostico_section = f"""
-#### 🔍 Diagnóstico de Correcciones (MAP):
+        fidelity = getattr(resultado, "fidelity", 100.0)
+        num_changed = getattr(resultado, "num_changed", len(corrections))
+        conf_level = getattr(resultado, "confidence_level", "HIGH")
+        divergent = getattr(resultado, "divergent", False)
+
+        if not resultado.fallback_used or num_changed == 0:
+            conf_badge = "🟢 **Fiabilidad Muy Alta (100% Coincidencia Top-1):** Todas las jaulas leídas en la percepción visual formaron directamente un Cuadrado Latino válido sin requerir ajustes."
+            fallback_msg = "⚡ **Lectura directa top-1 consistente**"
+        elif conf_level == "HIGH" or not divergent:
+            conf_badge = (
+                f"🟢 **Fiabilidad Alta (Rescate Neuro-Simbólico):** Se ajustaron **{num_changed} jaula(s)** mediante restricciones lógicas "
+                f"(**{fidelity}% de fidelidad visual**). El solver dedujo las lecturas correctas del Top-$k$ con alta certidumbre matemática."
+            )
+            fallback_msg = f"✅ **Activada ({num_changed} jaula(s) corregida(s), fidelidad {fidelity}%)**"
+        else:
+            conf_badge = (
+                f"🟡 **Aviso de Verificación (Múltiples Ajustes):** Se requirieron **{num_changed} correcciones** de jaulas (**{fidelity}% de fidelidad visual**). "
+                f"La solución matemática encontrada satisface formalmente todas las reglas de KenKen; te recomendamos revisar el desglose de jaulas abajo para confirmar que coincidan con tu impreso si alguna etiqueta visual fue muy borrosa."
+            )
+            fallback_msg = f"⚠️ **Activada con múltiples ajustes ({num_changed} jaulas, fidelidad {fidelity}%)**"
+
+        corr_details = "\n".join(corrections) if corrections else "*(Sin cambios sobre top-1)*"
+        diagnostico_section = f"""
+#### 🔍 Diagnóstico de Fiabilidad y Correcciones:
 {conf_badge}
 
 {corr_details}
 """
-            fallback_msg = f"✅ **Activada ({num_corr} jaula(s) modificada(s))**"
-        else:
-            diagnostico_section = """
-#### 🔍 Diagnóstico de Lectura:
-⚡ **100% Consistente:** Todas las jaulas leídas en top-1 formaron directamente un Cuadrado Latino válido sin requerir modificaciones.
-"""
-            fallback_msg = "⚡ **Lectura directa top-1 consistente**"
 
         metricas_md = f"""
 ### 🧩 KenKen {n}×{n} Resuelto Exitosamente
@@ -114,6 +104,7 @@ def resolver_kenken(image: np.ndarray | None, method: str = "auto", render_mode:
 | Métrica | Valor |
 |---|---|
 | **Estado del Solver** | `{resultado.status}` |
+| **Fidelidad Visual** | `{fidelity}%` ({resultado.confidence_level}) |
 | **Tiempo de CPU** | `{resultado.solve_result.wall_time * 1000:.2f} ms` |
 | **Ramas Exploradas** | `{resultado.solve_result.branches}` |
 | **Conflictos Resueltos** | `{resultado.solve_result.conflicts}` |
@@ -178,16 +169,22 @@ def build_app() -> gr.Blocks:
             "🏆 Caso 5: Gran Escala (9x9)",
         ),
         (
-            "caso6_abstencion_confiable_divergente.jpg",
+            "caso6_rescate_avanzado_6x6.jpg",
             "auto",
             "composite",
-            "⚠️ Caso 6: Abstención Honesta",
+            "⚡ Caso 6: Rescate Avanzado 3 jaulas (6x6)",
         ),
         (
-            "caso7_infactible_contradictorio.jpg",
+            "caso7_aviso_ajustes_multiples_6x6.jpg",
             "auto",
             "composite",
-            "❌ Caso 7: Tablero Infactible",
+            "🟡 Caso 7: Aviso (Múltiples Ajustes)",
+        ),
+        (
+            "caso8_infactible_contradictorio.jpg",
+            "auto",
+            "composite",
+            "❌ Caso 8: Tablero Infactible",
         ),
     ]
 
@@ -249,12 +246,13 @@ def build_app() -> gr.Blocks:
                 | Caso Demostrativo | Tipo de Reto / Escenario | Comportamiento del Solver y Visión |
                 |---|---|---|
                 | 🟢 **Caso 1: Lectura Directa (4x4)** | Imagen digital nítida | Resolución inmediata en Top-1 visual (<0.2 s, sin necesidad de fallback). |
-                | ⚡ **Caso 2: Rescate Neuro-Simbólico MAP (4x4)** | Ambigüedad visual en operadores | Corrección automática: la inferencia conjunta deduce el operador correcto por restricciones lógicas. |
+                | ⚡ **Caso 2: Rescate Neuro-Simbólico MAP (4x4)** | Ambigüedad visual en 1 operador | Corrección automática: la inferencia conjunta deduce el operador correcto por restricciones lógicas. |
                 | 📐 **Caso 3: Perspectiva y Rotación (5x5)** | Fotografía real con ángulo e inclinación | Rectificación geométrica por homografía y corrección de perspectiva OpenCV. |
                 | 🧩 **Caso 4: Alta Dificultad (6x6)** | Tablero denso y operaciones grandes | Jaulas de 3-4 celdas, multiplicaciones complejas (`240*`) y deducción combinatoria. |
                 | 🏆 **Caso 5: Gran Escala (9x9)** | Tablero experto de 81 celdas | 27+ jaulas; demuestra la escalabilidad polinomial del solver CP-SAT de Google OR-Tools. |
-                | ⚠️ **Caso 6: Abstención Honesta Confiable** | Degradación severa y artefactos visuales | **Política de Fidedignidad**: El sistema prefiere abstenerse (`UNRELIABLE_DETECTION`) antes que engañar al usuario con una solución inventada. |
-                | ❌ **Caso 7: Tablero Infactible** | Contradicción matemática insoluble | Diagnóstico formal de infactibilidad (`INFEASIBLE`) reportado transparentemente. |
+                | ⚡ **Caso 6: Rescate Avanzado 3 Jaulas (6x6)** | 3 etiquetas con sombras/artefactos | Demuestra el poder de MAP: rescata simultáneamente 3 etiquetas (`18*`➔`180*`, etc.) logrando **100% de coincidencia exacta con el impreso**. |
+                | 🟡 **Caso 7: Aviso Informativo (Múltiples Ajustes)** | Degradación severa (7 jaulas ajustadas) | Muestra la solución encontrada pero emite un aviso amarillo de verificación para alertar al usuario sin censurar el resultado. |
+                | ❌ **Caso 8: Tablero Infactible** | Contradicción matemática insoluble | Diagnóstico formal de infactibilidad (`INFEASIBLE`) reportado transparentemente. |
                 """
             )
             gr.Examples(

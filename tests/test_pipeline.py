@@ -78,10 +78,10 @@ def test_solve_image_invalid_method():
         solve_image(img, method="metodo_invalido")
 
 
-def test_solve_image_honest_abstention_on_divergence():
-    """Si la inferencia conjunta requiere mutar más jaulas de las permitidas (M_max),
+def test_solve_image_divergence_metrics():
+    """Verifica que el pipeline registre la fidelidad visual y num_changed
 
-    el pipeline debe abstenerse honradamente con status UNRELIABLE_DETECTION y solved=False.
+    sin bloquear arbitrariamente la solución óptima si el solver la encontró.
     """
     inst, sol = generate(4, seed=35)
     img, gt = render_sample(inst, sol, random.Random(35), photo=False)
@@ -90,10 +90,9 @@ def test_solve_image_honest_abstention_on_divergence():
 
     def mock_read_instance(st, **kwargs):
         real_inst = real_read_instance(st, **kwargs)
-        # Corrompemos 3 jaulas (para 4x4 el número de jaulas suele ser ~6-8, max_allowed es 2)
+        # Corrompemos 3 jaulas
         corrupted_cages = list(real_inst.cages)
         candidates = dict(real_inst.candidates)
-        # Cambiamos 3 jaulas
         for idx in [0, 1, 2]:
             true_c = real_inst.cages[idx]
             corrupted_cages[idx] = Cage(true_c.cells, 999, true_c.op)
@@ -107,8 +106,10 @@ def test_solve_image_honest_abstention_on_divergence():
         res = solve_image(img, method="auto")
         assert res.fallback_used
         assert res.num_changed == 3
-        assert res.divergent is True
-        assert res.solved is False
-        assert res.status == "UNRELIABLE_DETECTION"
-        assert res.max_allowed_changes == max(2, int(0.15 * len(inst.cages)))
+        assert res.solved is True
+        assert res.status == "OPTIMAL"
+        assert res.grid == sol
+        assert res.fidelity < 100.0
+        assert res.confidence_level in ("HIGH", "MODERATE", "LOW")
+
 

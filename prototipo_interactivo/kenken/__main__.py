@@ -77,17 +77,23 @@ def main():
             f"tiempo={res_pipe.solve_result.wall_time:.4f}s  "
             f"ramas={res_pipe.solve_result.branches}  conflictos={res_pipe.solve_result.conflicts}"
         )
-        if res_pipe.divergent:
-            print(
-                f"\n⚠️  ADVERTENCIA DE DETECCIÓN NO FIDEDIGNA: Se requirieron {res_pipe.num_changed} correcciones "
-                f"de jaulas (límite seguro: {res_pipe.max_allowed_changes}). "
-                f"La solución automática fue bloqueada para evitar entregar un acertijo alterado."
-            )
-        elif res_pipe.solved:
+        if res_pipe.solved:
             print("\nGrilla solución:")
             print(format_grid(res_pipe.grid))
+            if res_pipe.fallback_used:
+                print(
+                    f"\n[MAP] Fidelidad visual: {res_pipe.fidelity}% ({res_pipe.num_changed} jaula(s) ajustadas por inferencia conjunta, nivel: {res_pipe.confidence_level})"
+                )
+            if res_pipe.divergent:
+                print(
+                    f"⚠️  AVISO DE VERIFICACIÓN: Se ajustaron {res_pipe.num_changed} jaulas "
+                    f"respecto a la lectura inicial ({res_pipe.fidelity}% de fidelidad visual). "
+                    f"Verifique que las etiquetas coincidan con su tablero impreso."
+                )
             if args.output_img:
                 print(f"\n[OK] Imagen de la solución guardada en: {args.output_img}")
+        else:
+            print(f"\nNo se pudo encontrar una solución válida (estado: {res_pipe.status}).")
     else:
         inst = Instance.load(arg_path).validate()
         print(inst, "\n")

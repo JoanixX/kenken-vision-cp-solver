@@ -203,17 +203,34 @@ class PipelineResult:
 
     @property
     def solved(self) -> bool:
-        return self.solve_result.solved and not self.divergent
+        return self.solve_result is not None and self.solve_result.solved
 
     @property
     def grid(self) -> list[list[int]] | None:
-        return self.solve_result.grid
+        return self.solve_result.grid if self.solve_result is not None else None
 
     @property
     def status(self) -> str:
-        if self.divergent:
-            return "UNRELIABLE_DETECTION"
-        return self.solve_result.status
+        return self.solve_result.status if self.solve_result is not None else "ERROR"
+
+    @property
+    def fidelity(self) -> float:
+        """Porcentaje de jaulas que conservaron la lectura visual inicial Top-1."""
+        if not self.instance or not self.instance.cages:
+            return 100.0
+        total = len(self.instance.cages)
+        return round((total - self.num_changed) / total * 100.0, 1)
+
+    @property
+    def confidence_level(self) -> str:
+        """Nivel cualitativo de fiabilidad ('HIGH', 'MODERATE', 'LOW')."""
+        if self.num_changed == 0:
+            return "HIGH"
+        if self.fidelity >= 70.0 and self.num_changed <= 3:
+            return "HIGH"
+        if self.fidelity >= 50.0:
+            return "MODERATE"
+        return "LOW"
 
     def render_solution(
         self, out_path: str | Path | None = None, mode: str = "composite"
@@ -358,12 +375,8 @@ def solve_image(
         )
 
     num_changed = getattr(res, "num_changed", 0)
-    max_allowed = max(2, int(0.15 * len(inst.cages)))
-    divergent = False
-    if fallback_used and num_changed > max_allowed:
-        divergent = True
-    elif method == "joint" and num_changed > max_allowed:
-        divergent = True
+    max_allowed = max(3, int(0.35 * len(inst.cages)))
+    divergent = (fallback_used or method == "joint") and num_changed > max_allowed
 
     result = PipelineResult(
         image=img,

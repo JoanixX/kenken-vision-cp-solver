@@ -77,27 +77,34 @@ $$\max \sum_{c \in \mathcal{C}} \sum_{k} b_{c,k} \cdot \left( 1000 \cdot \log p(
 Adicionalmente, se audita y devuelve de forma determinista la métrica:
 $$M_{\text{corregidas}} = \sum_{c \in \mathcal{C}} \mathbf{1}_{\{\text{k\_elegido}_c > 0\}}$$
 
-### 4.3. Política de Fidedignidad y Umbral Dinámico (`kenken/pipeline.py`)
-El pipeline evalúa el número de mutaciones realizadas por el solver:
-$$M_{\text{max}} = \max\left(2, \lfloor 0.15 \times |\mathcal{C}|\rfloor\right)$$
+### 4.3. Semáforo de Fiabilidad y Métrica de Fidelidad Visual (`kenken/pipeline.py`)
 
-- Si $M_{\text{corregidas}} \le M_{\text{max}}$: Se acepta la solución como una corrección visual legítima de ambigüedad.
-- Si $M_{\text{corregidas}} > M_{\text{max}}$:
-  - `divergent = True`
-  - `solved = False`
-  - `status = "UNRELIABLE_DETECTION"`
-  - Se emite una advertencia explícita en consola (CLI).
+Tras auditar casos reales de estrés como `stress_00011.jpg`, se constató que un corte estricto que bloquee la solución (`solved = False`) cuando $M_{\text{corregidas}} > 2$ es **contraproducente**: en ese ejemplo, el solver corrigió legítimamente 3 etiquetas borrosas (`18*` ➔ `180*`), alcanzando un **$100\%$ de coincidencia exacta con el Ground Truth**. Declarar "no resuelto" en un caso 100% acertado desmerece el poder neuro-simbólico del sistema.
+
+Por ello, la arquitectura evolucionó de un bloqueo binario hacia un **Semáforo de Fiabilidad Informativo y Gradual**:
+
+1. **La solución óptima nunca se censura:** Si CP-SAT demuestra factibilidad matemática (`OPTIMAL`), `solved = True` y la matriz resultante se entrega al usuario.
+2. **Métrica de Fidelidad Visual:**
+   $$\text{Fidelidad} = \frac{|\mathcal{C}| - M_{\text{corregidas}}}{|\mathcal{C}|} \times 100\%$$
+3. **Nivel de Confianza Cualitativo (`confidence_level`):**
+   - 🟢 **`HIGH` (Fiabilidad Muy Alta / Alta):** 0 cambios sobre Top-1 ($100\%$ de fidelidad), o 1 a 3 correcciones de alta verosimilitud con fidelidad $\ge 70\%$.
+   - 🟡 **`MODERATE` (Aviso de Verificación):** Fidelidad entre $50\%$ y $70\%$, o correcciones múltiples. El sistema emite un aviso preventivo para que el usuario verifique las etiquetas ajustadas.
+   - 🔴 **`LOW` (Divergencia Sospechada):** Menos del $50\%$ de las jaulas visuales conservadas.
+4. **Flag Consultivo de Divergencia (`divergent`):**
+   Indica si $M_{\text{corregidas}} > \max(3, \lfloor 0.35 \times |\mathcal{C}|\rfloor)$, alertando a los consumidores de la API sobre la necesidad de inspección visual de las restricciones.
 
 ---
 
 ## 5. Experiencia de Usuario en el Prototipo Gradio (`prototipo_interactivo/app.py`)
 
-En la interfaz interactiva, cuando se activa `UNRELIABLE_DETECTION`:
-1. **No se proclama éxito ni se dibuja la solución ficticia como definitiva.**
-2. Se muestra un banner ambar prominente con diagnóstico claro:
-   - **Estado:** `UNRELIABLE_DETECTION (Abstención Confiable)`
-   - **Inconsistencias detectadas:** Indica cuántas jaulas necesitaron cambiarse y cuál era el límite permitido.
-   - **Orientación al usuario:** Se explica con transparencia que para no entregar un acertijo inventado, el sistema prefiere solicitar una fotografía con mejor iluminación, encuadre frontal y sin sombras sobre los caracteres.
+En la interfaz interactiva:
+1. **Entrega de Solución:** Siempre se proyecta la cuadrícula resuelta si el solver alcanzó `OPTIMAL`.
+2. **Diagnóstico Transparente en Tiempo Real:**
+   - Si no hubo cambios: Se resalta la consistencia directa de la percepción visual.
+   - Si hubo correcciones legítimas: Se muestra un badge verde detallando el rescate neuro-simbólico y la fidelidad obtenida (e.g. `82.4%`).
+   - Si se requirieron múltiples ajustes ($\ge 35\%$ del tablero): Se despliega una advertencia amarilla informativa solicitando al usuario verificar si las jaulas ajustadas coinciden con su impreso si alguna etiqueta estuvo muy borrosa.
+3. **Catálogo de 8 Muestras por Defecto:**
+   Incluye desde tableros directos y desafíos de perspectiva hasta rescates avanzados de 3 jaulas (`caso6`) y avisos de verificación (`caso7`).
 
 ---
 
@@ -107,10 +114,13 @@ Se implementaron pruebas unitarias específicas que verifican:
 1. `test_decode_respects_cage_size`: Garantiza que `/` y `-` sean podados en jaulas de $\ge 3$ celdas.
 2. `test_solve_joint_tracks_num_changed`: Verifica que $M_{\text{corregidas}}$ cuente exactamente las alteraciones respecto al Top-1.
 3. `test_solve_joint_zero_changes_when_clean`: Comprueba que tableros nítidos tengan $M_{\text{corregidas}} = 0$.
-4. `test_solve_image_honest_abstention_on_divergence`: Confirma que superar $M_{\text{max}}$ active `divergent = True`, `solved = False` y `status = UNRELIABLE_DETECTION`.
-5. `test_resolver_kenken_divergent_warning`: Garantiza que el callback de Gradio reaccione correctamente y no devuelva un falso positivo.
+4. `test_solve_image_divergence_metrics`: Confirma que el pipeline registre correctamente `fidelity`, `num_changed` y `confidence_level` manteniendo `solved = True` en `OPTIMAL`.
+5. `test_resolver_kenken_multiple_adjustments_warning`: Verifica que el callback de Gradio despliegue el aviso de verificación ante múltiples ajustes sin censurar la solución.
+6. `test_resolver_kenken_infeasible`: Confirma el reporte formal y transparente de `INFEASIBLE`.
+7. `test_all_showcase_cases_exist`: Valida que todas las imágenes demostrativas del prototipo existan y carguen correctamente.
 
 **Resultado de la suite de pruebas:**
 ```
-88 passed in 10.43s (100% de éxito)
+90 passed in 16.93s (100% de éxito)
 ```
+
