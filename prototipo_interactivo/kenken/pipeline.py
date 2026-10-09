@@ -196,11 +196,14 @@ class PipelineResult:
     instance: Instance
     solve_result: SolveResult
     fallback_used: bool = False
+    divergent: bool = False
+    num_changed: int = 0
+    max_allowed_changes: int = 0
     output_image_path: Path | None = None
 
     @property
     def solved(self) -> bool:
-        return self.solve_result.solved
+        return self.solve_result.solved and not self.divergent
 
     @property
     def grid(self) -> list[list[int]] | None:
@@ -208,6 +211,8 @@ class PipelineResult:
 
     @property
     def status(self) -> str:
+        if self.divergent:
+            return "UNRELIABLE_DETECTION"
         return self.solve_result.status
 
     def render_solution(
@@ -221,7 +226,7 @@ class PipelineResult:
           - 'original': Números proyectados con perspectiva sobre la foto original.
           - 'composite': Panel comparativo lado a lado (Entrada original / Solución KenKen).
         """
-        if not self.solved or self.grid is None:
+        if not self.solve_result.solved or self.grid is None:
             raise ValueError(
                 "No se puede generar la imagen de la solución porque el puzzle no fue resuelto."
             )
@@ -352,12 +357,23 @@ def solve_image(
             f"Método desconocido: {method}. Use 'auto', 'arithmetic', 'table' o 'joint'."
         )
 
+    num_changed = getattr(res, "num_changed", 0)
+    max_allowed = max(2, int(0.15 * len(inst.cages)))
+    divergent = False
+    if fallback_used and num_changed > max_allowed:
+        divergent = True
+    elif method == "joint" and num_changed > max_allowed:
+        divergent = True
+
     result = PipelineResult(
         image=img,
         structure=st,
         instance=inst,
         solve_result=res,
         fallback_used=fallback_used,
+        divergent=divergent,
+        num_changed=num_changed,
+        max_allowed_changes=max_allowed,
     )
 
     if output_image and result.solved:

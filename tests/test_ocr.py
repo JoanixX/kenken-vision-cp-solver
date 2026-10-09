@@ -38,9 +38,11 @@ def test_decode_best_reading():
 
 
 def test_decode_respects_cage_size():
-    # Jaula de 3 celdas: '-' no está permitido aunque la CNN lo prefiera.
-    r = decode_readings(one_hot_log_probs("4-"), cage_size=3, n=6)
-    assert all(x["op"] in "+*" for x in r)
+    # Jaula de 3 celdas: '-' ni '/' están permitidos aunque la CNN los prefiera.
+    r_sub = decode_readings(one_hot_log_probs("4-"), cage_size=3, n=6)
+    assert all(x["op"] in "+*" for x in r_sub)
+    r_div = decode_readings(one_hot_log_probs("2/"), cage_size=3, n=6)
+    assert all(x["op"] in "+*" for x in r_div)
     # Jaula de 1 celda: sin operación, todos los glifos son dígitos.
     r = decode_readings(one_hot_log_probs("5"), cage_size=1, n=6)
     assert (r[0]["target"], r[0]["op"]) == (5, "=")

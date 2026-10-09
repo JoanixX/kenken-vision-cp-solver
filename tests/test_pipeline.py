@@ -76,3 +76,39 @@ def test_solve_image_invalid_method():
     img, _ = render_sample(inst, sol, random.Random(1), photo=False)
     with pytest.raises(ValueError, match="Método desconocido"):
         solve_image(img, method="metodo_invalido")
+
+
+def test_solve_image_honest_abstention_on_divergence():
+    """Si la inferencia conjunta requiere mutar más jaulas de las permitidas (M_max),
+
+    el pipeline debe abstenerse honradamente con status UNRELIABLE_DETECTION y solved=False.
+    """
+    inst, sol = generate(4, seed=35)
+    img, gt = render_sample(inst, sol, random.Random(35), photo=False)
+
+    real_read_instance = read_instance
+
+    def mock_read_instance(st, **kwargs):
+        real_inst = real_read_instance(st, **kwargs)
+        # Corrompemos 3 jaulas (para 4x4 el número de jaulas suele ser ~6-8, max_allowed es 2)
+        corrupted_cages = list(real_inst.cages)
+        candidates = dict(real_inst.candidates)
+        # Cambiamos 3 jaulas
+        for idx in [0, 1, 2]:
+            true_c = real_inst.cages[idx]
+            corrupted_cages[idx] = Cage(true_c.cells, 999, true_c.op)
+            candidates[idx] = [
+                {"target": 999, "op": true_c.op, "logp": -0.01},
+                {"target": true_c.target, "op": true_c.op, "logp": -0.50},
+            ]
+        return Instance(real_inst.n, corrupted_cages, candidates)
+
+    with patch("kenken.pipeline.read_instance", side_effect=mock_read_instance):
+        res = solve_image(img, method="auto")
+        assert res.fallback_used
+        assert res.num_changed == 3
+        assert res.divergent is True
+        assert res.solved is False
+        assert res.status == "UNRELIABLE_DETECTION"
+        assert res.max_allowed_changes == max(2, int(0.15 * len(inst.cages)))
+

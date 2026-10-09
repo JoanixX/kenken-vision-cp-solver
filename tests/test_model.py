@@ -269,4 +269,39 @@ def test_solve_joint_infeasible_when_all_candidates_impossible():
     assert solve_joint(inst_bad).status == "INFEASIBLE"
 
 
+def test_solve_joint_tracks_num_changed():
+    inst = Instance.load(EXAMPLES[1])
+    true_sol = solve(inst).grid
+
+    true_cage = inst.cages[0]
+    corrupted_cages = list(inst.cages)
+    corrupted_cages[0] = Cage(true_cage.cells, 999, true_cage.op)
+
+    cands = {
+        0: [
+            {"target": 999, "op": true_cage.op, "logp": -0.01},  # top-1 (erróneo)
+            {"target": true_cage.target, "op": true_cage.op, "logp": -0.50},  # top-2 (correcto)
+        ]
+    }
+    for c_idx in range(1, len(inst.cages)):
+        c = inst.cages[c_idx]
+        cands[c_idx] = [{"target": c.target, "op": c.op, "logp": 0.0}]
+
+    noisy_inst = Instance(inst.n, corrupted_cages, cands)
+    res_joint = solve_joint(noisy_inst)
+    assert res_joint.status == "OPTIMAL"
+    assert res_joint.grid == true_sol
+    assert res_joint.num_changed == 1
+
+
+def test_solve_joint_zero_changes_when_clean():
+    inst = Instance.load(EXAMPLES[1])
+    cands = {i: [{"target": c.target, "op": c.op, "logp": 0.0}] for i, c in enumerate(inst.cages)}
+    clean_inst = Instance(inst.n, inst.cages, cands)
+    res_joint = solve_joint(clean_inst)
+    assert res_joint.status == "OPTIMAL"
+    assert res_joint.num_changed == 0
+
+
+
 

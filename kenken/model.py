@@ -102,14 +102,15 @@ def build_model_table(inst: Instance, redundant: bool = False):
     return model, x
 
 
-def build_model_joint(inst: Instance, scale: int = 1000):
+def build_model_joint(inst: Instance, scale: int = 1000, penalty_per_change: int = 1500):
     """Crea el modelo CP-SAT de inferencia conjunta (Variante C: neuro-simbólica).
 
     Para cada jaula, toma la lista de lecturas candidatas en `inst.candidates[c]`
     (o la lectura única de `inst.cages[c]` si no hay alternativas). Introduce variables
     indicadoras booleanas r[c, k] con la restricción ExactlyOne(r[c, :]) y reifica
     las restricciones aritméticas con add_reified_cage_constraint.
-    Maximiza la log-verosimilitud ponderada.
+    Maximiza la log-verosimilitud ponderada aplicando penalización L0 para cambios
+    sobre la lectura Top-1 (penalty_per_change).
 
     Devuelve (model, x, r_selected) donde r_selected[c] es [(r_var, cand_dict), ...].
     """
@@ -142,7 +143,8 @@ def build_model_joint(inst: Instance, scale: int = 1000):
             )
 
             logp = cand.get("logp", 0.0)
-            score = int(round(scale * logp))
+            change_penalty = penalty_per_change if k_idx > 0 else 0
+            score = int(round(scale * logp)) - change_penalty
             obj_terms.append(score * r)
 
         model.AddExactlyOne([r for r, _ in cage_r_list])
@@ -377,6 +379,7 @@ class SolveResult:
     branches: int
     conflicts: int
     chosen_candidates: dict[int, dict] | None = None
+    num_changed: int = 0
 
     @property
     def solved(self) -> bool:
@@ -430,13 +433,15 @@ def solve_joint(
     workers: int = 8,
     seed: int = 0,
     scale: int = 1000,
+    penalty_per_change: int = 1500,
 ) -> SolveResult:
     """Resuelve la instancia con inferencia conjunta (Variante C: neuro-simbólica).
 
     Elige las lecturas de jaula más verosímiles que sean consistentes
-    con las reglas del Cuadrado Latino y la aritmética de KenKen.
+    con las reglas del Cuadrado Latino y la aritmética de KenKen, penalizando
+    las desviaciones respecto al Top-1 visual para evitar divergencia espuria.
     """
-    model, x, r_selected = build_model_joint(inst, scale=scale)
+    model, x, r_selected = build_model_joint(inst, scale=scale, penalty_per_change=penalty_per_change)
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = time_limit
     solver.parameters.num_search_workers = workers
@@ -445,6 +450,7 @@ def solve_joint(
 
     grid = None
     chosen_candidates = None
+    num_changed = 0
     if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         grid = [[solver.Value(v) for v in row] for row in x]
         chosen_candidates = {}
@@ -452,6 +458,9 @@ def solve_joint(
             for r, cand in r_list:
                 if solver.Value(r) == 1:
                     chosen_candidates[c_idx] = cand
+                    top1 = inst.candidates.get(c_idx, [{}])[0]
+                    if cand.get("target") != top1.get("target") or cand.get("op") != top1.get("op"):
+                        num_changed += 1
                     break
 
     return SolveResult(
@@ -461,6 +470,7 @@ def solve_joint(
         solver.NumBranches(),
         solver.NumConflicts(),
         chosen_candidates=chosen_candidates,
+        num_changed=num_changed,
     )
 
 

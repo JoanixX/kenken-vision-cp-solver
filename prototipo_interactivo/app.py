@@ -24,7 +24,7 @@ import numpy as np
 from kenken.pipeline import solve_image
 
 
-def resolver_kenken(image: np.ndarray | None, method: str, render_mode: str):
+def resolver_kenken(image: np.ndarray | None, method: str = "auto", render_mode: str = "composite"):
     """Callback para procesar la imagen capturada o subida en Gradio."""
     if image is None:
         return None, "⚠️ **Por favor captura una fotografía con la cámara o selecciona una imagen de los ejemplos.**"
@@ -39,6 +39,21 @@ def resolver_kenken(image: np.ndarray | None, method: str, render_mode: str):
         resultado = solve_image(img_bgr, method=method, render_mode=render_mode)
 
         if not resultado.solved or resultado.grid is None:
+            if getattr(resultado, "divergent", False):
+                sol_bgr = resultado.render_solution(mode=render_mode)
+                sol_rgb = cv2.cvtColor(sol_bgr, cv2.COLOR_BGR2RGB)
+                num_c = resultado.num_changed
+                max_a = resultado.max_allowed_changes
+                return (
+                    sol_rgb,
+                    f"### ⚠️ Advertencia: Lectura Visual No Fidedigna (Abstención Confiable)\n\n"
+                    f"- **Estado Oficial:** `UNRELIABLE_DETECTION`\n"
+                    f"- **Inconsistencias:** Se requirieron **{num_c} correcciones** de jaulas (límite de seguridad: **{max_a}**).\n\n"
+                    f"Para no entregarte un acertijo inventado que no coincide con el impreso original, "
+                    f"**el sistema se abstiene de proclamar éxito**.\n\n"
+                    f"💡 **Sugerencia:** Toma una fotografía con encuadre frontal, iluminación uniforme y sin sombras sobre las etiquetas.\n\n"
+                    f"*(Nota: La imagen adjunta muestra la solución matemática hipotética encontrada por el solver, pero difiere del impreso original).* ",
+                )
             return (
                 None,
                 f"❌ **No se pudo encontrar una solución válida.**\n\n"
