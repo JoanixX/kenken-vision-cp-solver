@@ -135,4 +135,20 @@ def test_all_showcase_cases_exist():
         assert img is not None, f"El archivo {case_name} debe ser una imagen válida"
 
 
+def test_prototype_preview_components():
+    """Verifica que build_app incluya los componentes visuales de previsualización para el catálogo."""
+    import gradio as gr
+    demo = build_app()
+    # Contar componentes Image dentro de la demo (el input, el output y los previews de las muestras)
+    images = [b for b in demo.blocks.values() if isinstance(b, gr.Image)]
+    # Deberían ser al menos: 1 input + 1 output + 21 muestras = 23 componentes Image
+    assert len(images) >= 23, f"Se esperaban al menos 23 componentes Image, se encontraron {len(images)}"
+
+    # Verificar que existan botones interactivos para Cargar y Resolver
+    buttons = [b for b in demo.blocks.values() if isinstance(b, gr.Button)]
+    labels = [getattr(b, "value", "") for b in buttons]
+    assert any("Cargar" in str(v) for v in labels)
+    assert any("Resolver" in str(v) for v in labels)
+
+
 

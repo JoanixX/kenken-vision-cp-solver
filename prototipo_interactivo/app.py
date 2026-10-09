@@ -253,27 +253,65 @@ def build_app() -> gr.Blocks:
 
         gr.Markdown("---")
         gr.Markdown("### 📂 Catálogo Demostrativo por Categorías (3 Imágenes por Tipo de Muestra)")
+        gr.Markdown(
+            "💡 *Explora las vistas previas organizadas por categoría técnica. "
+            "Haz clic directamente sobre la imagen o en **⚡ Resolver** para probarla al instante, "
+            "o en **📥 Cargar** para inspeccionarla en el panel de entrada.*"
+        )
         with gr.Tabs():
             for group in category_groups:
                 with gr.Tab(group["name"]):
                     gr.Markdown(f"*{group['desc']}*")
-                    valid_ex = []
-                    labels = []
-                    for fname, method, mode, lbl in group["examples"]:
-                        fpath = sample_dir / fname
-                        if fpath.exists():
-                            valid_ex.append([str(fpath), method, mode])
-                            labels.append(lbl)
-                    if valid_ex:
-                        gr.Examples(
-                            examples=valid_ex,
-                            example_labels=labels,
-                            inputs=[image_input, method_input, render_input],
-                            outputs=[image_output, metrics_output],
-                            fn=resolver_kenken,
-                            cache_examples=False,
-                            label="Haz clic en cualquier muestra para probar inmediatamente:",
-                        )
+                    with gr.Row():
+                        for fname, method, mode, lbl in group["examples"]:
+                            fpath = sample_dir / fname
+                            if fpath.exists():
+                                with gr.Column(scale=1):
+                                    preview_img = gr.Image(
+                                        value=str(fpath),
+                                        label=lbl,
+                                        interactive=False,
+                                        height=210,
+                                        show_label=True,
+                                    )
+                                    with gr.Row():
+                                        btn_load_only = gr.Button("📥 Cargar", variant="secondary", size="sm")
+                                        btn_solve_now = gr.Button("⚡ Resolver", variant="primary", size="sm")
+
+                                    def _make_sample_handlers(img_p=str(fpath), m=method, r=mode):
+                                        def _load_handler(*_args):
+                                            img_b = cv2.imread(img_p)
+                                            if img_b is None:
+                                                return None, m, r
+                                            img_r = cv2.cvtColor(img_b, cv2.COLOR_BGR2RGB)
+                                            return img_r, m, r
+
+                                        def _solve_handler(*_args):
+                                            img_b = cv2.imread(img_p)
+                                            if img_b is None:
+                                                return None, m, r, None, "⚠️ Error: No se pudo cargar el archivo de imagen."
+                                            img_r = cv2.cvtColor(img_b, cv2.COLOR_BGR2RGB)
+                                            sol_r, met_md = resolver_kenken(img_r, method=m, render_mode=r)
+                                            return img_r, m, r, sol_r, met_md
+
+                                        return _load_handler, _solve_handler
+
+                                    load_fn, solve_fn = _make_sample_handlers(str(fpath), method, mode)
+                                    btn_load_only.click(
+                                        fn=load_fn,
+                                        inputs=[],
+                                        outputs=[image_input, method_input, render_input],
+                                    )
+                                    btn_solve_now.click(
+                                        fn=solve_fn,
+                                        inputs=[],
+                                        outputs=[image_input, method_input, render_input, image_output, metrics_output],
+                                    )
+                                    preview_img.select(
+                                        fn=solve_fn,
+                                        inputs=[],
+                                        outputs=[image_input, method_input, render_input, image_output, metrics_output],
+                                    )
 
         btn_solve.click(
             fn=resolver_kenken,

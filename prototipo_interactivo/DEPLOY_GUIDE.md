@@ -26,7 +26,7 @@ Para que un Space funcione en Hugging Face, la carpeta debe contener los siguien
 | `app.py` | El archivo ejecutable principal que construye la interfaz con Gradio y llama al solver de KenKen. |
 | `requirements.txt` | Lista de librerías Python que Hugging Face instalará con `pip` durante el build. |
 | `packages.txt` | Lista de paquetes del sistema operativo Linux Debian que se instalarán con `apt-get` (por ejemplo, `libgl1` y `libglib2.0-0` necesarios para OpenCV). |
-| `sample_images/` | Imágenes de prueba que se muestran en el componente `gr.Examples` para que cualquiera pueda probar el solver con un solo clic. |
+| `sample_images/` | Imágenes de prueba organizadas por categorías con previsualización visual (*preview*) y botones interactivos para probar el solver con un solo clic. |
 | `models/ocr_cnn.pt` | Los pesos preentrenados de la red neuronal convolucional para el reconocimiento de caracteres. |
 | `kenken/` | El código modular del pipeline de visión por computador y de los modelos de Constraint Programming. |
 
