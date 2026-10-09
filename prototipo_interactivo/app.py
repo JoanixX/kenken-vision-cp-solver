@@ -146,15 +146,58 @@ def build_app() -> gr.Blocks:
     )
 
     sample_dir = ROOT_DIR / "sample_images"
-    sample_files = [
-        str(sample_dir / "kenken_3x3.jpg"),
-        str(sample_dir / "kenken_4x4_desafio_map.jpg"),
-        str(sample_dir / "kenken_5x5_desafio_map.jpg"),
-        str(sample_dir / "kenken_6x6.jpg"),
-        str(sample_dir / "kenken_9x9.png"),
+    cases_def = [
+        (
+            "caso1_lectura_directa_4x4.png",
+            "auto",
+            "composite",
+            "🟢 Caso 1: Lectura Directa (4x4)",
+        ),
+        (
+            "caso2_rescate_map_4x4.jpg",
+            "auto",
+            "composite",
+            "⚡ Caso 2: Rescate MAP (4x4)",
+        ),
+        (
+            "caso3_perspectiva_rotacion_5x5.jpg",
+            "auto",
+            "composite",
+            "📐 Caso 3: Perspectiva y Rotación (5x5)",
+        ),
+        (
+            "caso4_alta_dificultad_6x6.jpg",
+            "auto",
+            "composite",
+            "🧩 Caso 4: Alta Dificultad (6x6)",
+        ),
+        (
+            "caso5_gran_escala_9x9.png",
+            "auto",
+            "composite",
+            "🏆 Caso 5: Gran Escala (9x9)",
+        ),
+        (
+            "caso6_abstencion_confiable_divergente.jpg",
+            "auto",
+            "composite",
+            "⚠️ Caso 6: Abstención Honesta",
+        ),
+        (
+            "caso7_infactible_contradictorio.jpg",
+            "auto",
+            "composite",
+            "❌ Caso 7: Tablero Infactible",
+        ),
     ]
-    # Filtrar solo las muestras existentes
-    valid_examples = [[p, "auto", "composite"] for p in sample_files if Path(p).exists()]
+
+    valid_examples = []
+    example_labels = []
+    for fname, method, mode, label in cases_def:
+        fpath = sample_dir / fname
+        if fpath.exists():
+            valid_examples.append([str(fpath), method, mode])
+            example_labels.append(label)
 
     with gr.Blocks(title="KenKen Vision-CP Solver") as demo:
         gr.Markdown(
@@ -198,14 +241,30 @@ def build_app() -> gr.Blocks:
 
         if valid_examples:
             gr.Markdown("---")
-            gr.Markdown("### 📂 Muestras Listas para Probar en 1 Clic")
+            gr.Markdown("### 📂 Casos de Prueba Demostrativos")
+            gr.Markdown(
+                """
+                Selecciona cualquiera de las muestras por defecto para evaluar el comportamiento del sistema ante distintos escenarios reales:
+
+                | Caso Demostrativo | Tipo de Reto / Escenario | Comportamiento del Solver y Visión |
+                |---|---|---|
+                | 🟢 **Caso 1: Lectura Directa (4x4)** | Imagen digital nítida | Resolución inmediata en Top-1 visual (<0.2 s, sin necesidad de fallback). |
+                | ⚡ **Caso 2: Rescate Neuro-Simbólico MAP (4x4)** | Ambigüedad visual en operadores | Corrección automática: la inferencia conjunta deduce el operador correcto por restricciones lógicas. |
+                | 📐 **Caso 3: Perspectiva y Rotación (5x5)** | Fotografía real con ángulo e inclinación | Rectificación geométrica por homografía y corrección de perspectiva OpenCV. |
+                | 🧩 **Caso 4: Alta Dificultad (6x6)** | Tablero denso y operaciones grandes | Jaulas de 3-4 celdas, multiplicaciones complejas (`240*`) y deducción combinatoria. |
+                | 🏆 **Caso 5: Gran Escala (9x9)** | Tablero experto de 81 celdas | 27+ jaulas; demuestra la escalabilidad polinomial del solver CP-SAT de Google OR-Tools. |
+                | ⚠️ **Caso 6: Abstención Honesta Confiable** | Degradación severa y artefactos visuales | **Política de Fidedignidad**: El sistema prefiere abstenerse (`UNRELIABLE_DETECTION`) antes que engañar al usuario con una solución inventada. |
+                | ❌ **Caso 7: Tablero Infactible** | Contradicción matemática insoluble | Diagnóstico formal de infactibilidad (`INFEASIBLE`) reportado transparentemente. |
+                """
+            )
             gr.Examples(
                 examples=valid_examples,
+                example_labels=example_labels,
                 inputs=[image_input, method_input, render_input],
                 outputs=[image_output, metrics_output],
                 fn=resolver_kenken,
                 cache_examples=False,
-                label="Haz clic en cualquier muestra para probar inmediatamente:",
+                label="Haz clic en cualquier caso para cargarlo en la interfaz:",
             )
 
         btn_solve.click(

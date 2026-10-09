@@ -60,3 +60,23 @@ def test_resolver_kenken_divergent_warning():
         assert "Abstención Confiable" in info_md
         assert "4 correcciones" in info_md
 
+
+def test_all_showcase_cases_exist():
+    """Verifica que las imágenes de muestra para los 7 casos existan y sean válidas."""
+    expected_cases = [
+        "caso1_lectura_directa_4x4.png",
+        "caso2_rescate_map_4x4.jpg",
+        "caso3_perspectiva_rotacion_5x5.jpg",
+        "caso4_alta_dificultad_6x6.jpg",
+        "caso5_gran_escala_9x9.png",
+        "caso6_abstencion_confiable_divergente.jpg",
+        "caso7_infactible_contradictorio.jpg",
+    ]
+    sample_dir = Path("prototipo_interactivo/sample_images")
+    for case_name in expected_cases:
+        p = sample_dir / case_name
+        assert p.exists(), f"El archivo de muestra {case_name} debe existir"
+        img = cv2.imread(str(p))
+        assert img is not None, f"El archivo {case_name} debe ser una imagen válida"
+
+
