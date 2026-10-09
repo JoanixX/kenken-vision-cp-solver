@@ -1,20 +1,37 @@
+# Python & Entornos
 .venv/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 .pytest_cache/
 .ipynb_checkpoints/
+*.egg-info/
+dist/
+build/
+
+# Scratch local
+scratch/*
+!scratch/.gitignore
+!scratch/README.md
+
+# Pesos de respaldo
+models/*_backup.pt
+
+# Datasets sintéticos pesados
 dataset/synthetic/
 dataset/synthetic_hard/
+
+# Gradio cache
 .gradio/
-*_backup.pt
 
 # LaTeX build artifacts
-*.aux
-*.log
-*.out
-*.toc
-*.synctex.gz
-*.bbl
-*.blg
-*.fls
-*.fdb_latexmk
+informe/*.aux
+informe/*.log
+informe/*.out
+informe/*.toc
+informe/*.synctex.gz
+informe/*.bbl
+informe/*.blg
+informe/*.fls
+informe/*.fdb_latexmk

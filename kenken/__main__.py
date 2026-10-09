@@ -17,6 +17,21 @@ from .visualize import draw_solution_clean
 
 
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "benchmark":
+        from scripts.benchmark import main as bench_main
+        sys.argv.pop(1)
+        bench_main()
+        return
+
+    if len(sys.argv) > 1 and sys.argv[1] == "evaluate":
+        from scripts.evaluate import main as eval_main
+        sys.argv.pop(1)
+        eval_main()
+        return
+
+    if len(sys.argv) > 1 and sys.argv[1] == "solve":
+        sys.argv.pop(1)
+
     parser = argparse.ArgumentParser(
         description="KenKen Solver: Visión Computacional + Constraint Programming (OR-Tools CP-SAT)"
     )

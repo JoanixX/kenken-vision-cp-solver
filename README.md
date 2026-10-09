@@ -6,7 +6,7 @@
 [![OR-Tools](https://img.shields.io/badge/Google%20OR--Tools-CP--SAT%20v9.10%2B-orange.svg)](https://developers.google.com/optimization)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-red.svg)](https://pytorch.org/)
 [![OpenCV](https://img.shields.io/badge/OpenCV-4.10%2B-green.svg)](https://opencv.org/)
-[![Tests](https://img.shields.io/badge/Tests-84%20passing%20(100%25)-brightgreen.svg)](#suite-de-pruebas)
+[![Tests](https://img.shields.io/badge/Tests-91%20passing%20(100%25)-brightgreen.svg)](#suite-de-pruebas)
 [![Report](https://img.shields.io/badge/Informe-IEEEtran%20LaTeX-purple.svg)](informe/main.tex)
 
 ---
@@ -182,51 +182,76 @@ python -m kenken.benchmark --sizes 3 4 5 6 7 8 9 --repeats 3
 ```text
 kenken-vision-cp-solver/
 ├── README.md                      ← Documentación general del proyecto
+├── pyproject.toml                 ← Configuración moderna de empaquetado y pytest
 ├── requirements.txt               ← Dependencias de Python
-├── models/
-│   └── ocr_cnn.pt                 ← Pesos preentrenados de la CNN de caracteres
-├── kenken/                        ← Paquete modular principal
+├── scripts/                       ← Herramientas ejecutables y experimentales
+│   ├── README.md                  ← Guía de uso de los scripts
+│   ├── benchmark.py               ← Suite de benchmarking CP-SAT
+│   ├── evaluate.py                ← Evaluación de visión, OCR y pipeline
+│   ├── finetune.py                ← Fine-tuning de GlyphCNN con Focal Loss
+│   ├── generate_figures.py        ← Generador de curvas y matrices de confusión
+│   ├── make_challenge_dataset.py  ← Generador de datasets de estrés
+│   └── experiments/               ← Estudios empíricos y análisis de fallos
+│       ├── comprehensive_map_study.py
+│       └── test_map_analysis.py
+├── kenken/                        ← Paquete modular principal (biblioteca)
 │   ├── __init__.py                ← Exportación de la API pública
-│   ├── __main__.py                ← Interfaz de línea de comandos (CLI)
+│   ├── __main__.py                ← CLI principal (solve, benchmark, evaluate)
 │   ├── instance.py                ← Esquema formal JSON (Instance, Cage) y validación
 │   ├── model.py                   ← Modelos CP-SAT (Variantes A, B, C, reificación)
 │   ├── generator.py               ← Generador de acertijos con solución única
 │   ├── pipeline.py                ← solve_image(), PipelineResult y fallback automático
 │   ├── visualize.py               ← Motor gráfico (clean, original, composite)
-│   ├── benchmark.py               ← Suite de benchmarking y análisis de complejidad
 │   ├── preprocessing.py           ← Binarización, detección de bordes y homografía H
 │   ├── grid.py                    ← Detección de orden n y coordenadas de celdas
 │   ├── cages.py                   ← Detección de grosor de bordes y partición en jaulas
 │   ├── ocr.py                     ← Segmentación de etiquetas, gramática y decodificación
 │   ├── cnn.py                     ← Arquitectura e inferencia de la red neuronal
 │   ├── render.py                  ← Generador sintético con degradaciones físicas
-│   ├── evaluate.py                ← Evaluación de precisión de visión y OCR
-│   └── figures.py                 ← Generación de curvas y matrices de confusión
-├── dataset/
+│   ├── benchmark.py               ← Fachada de benchmarking (retrocompatibilidad)
+│   ├── evaluate.py                ← Fachada de evaluación (retrocompatibilidad)
+│   ├── finetune.py                ← Fachada de fine-tuning (retrocompatibilidad)
+│   ├── figures.py                 ← Fachada de figuras (retrocompatibilidad)
+│   └── make_challenge_dataset.py  ← Fachada de generación de datasets
+├── models/                        ← Modelos y puntos de control neuronales
+│   ├── README.md                  ← Ficha técnica de arquitecturas y métricas
+│   ├── ocr_cnn_finetuned.pt       ← Checkpoint principal optimizado
+│   └── ocr_cnn.pt                 ← Checkpoint base
+├── dataset/                       ← Datasets de evaluación y entrenamiento
+│   ├── README.md                  ← Documentación y esquemas de datos
 │   ├── synthetic/                 ← 300 pares imagen + JSON ground truth
-│   └── synthetic_hard/            ← 150 pares de alta degradación física
-├── results/
-│   ├── cp_benchmark.csv           ← Datos crudos del benchmark de CP
-│   ├── figs/
-│   │   └── cp_benchmark.png       ← Gráfica multipanel de tiempos y complejidad
-│   └── demo_solution.png          ← Imagen de muestra de la solución generada
-├── informe/                       ← Informe técnico académico en LaTeX
-│   ├── main.tex                   ← Documento raíz en formato IEEEtran
-│   ├── cp_model_section.tex       ← Sección matemática y experimental de CP
-│   ├── refs.bib                   ← Referencias bibliográficas canónicas
+│   ├── synthetic_hard/            ← 150 pares de alta degradación física
+│   └── challenge_stress/          ← Tableros de estrés con contradicciones inducidas
+├── results/                       ← Métricas experimentales y figuras
+│   ├── README.md                  ← Índice detallado de artefactos generados
+│   ├── benchmarks/                ← Archivos CSV de CP, OCR y End-to-End
+│   ├── figs/                      ← Gráficas comparativas y matrices de confusión
+│   └── logs/                      ← Registros de entrenamiento y ajuste fino
+├── informe/                       ← Manuscrito académico en LaTeX IEEEtran y Word
+│   ├── README.md                  ← Instrucciones de compilación
+│   ├── main.tex                   ← Documento raíz IEEEtran
+│   ├── actualizar_docx.py         ← Generador automatizado a Microsoft Word
 │   └── figs/                      ← Figuras incluidas en el informe
-├── docs/
-│   ├── cp_documentation.md        ← Documentación técnica detallada del módulo CP
-│   ├── plan_implementacion_cp.md  ← Bitácora de implementación y criterios de aceptación
-│   └── cnn_explicada.md           ← Arquitectura y entrenamiento de la CNN
-└── tests/                         ← Suite de pruebas unitarias automatizadas (pytest)
-    ├── test_model.py              ← Pruebas de CP (A, B, C, unicidad, infactibilidad)
-    ├── test_pipeline.py           ← Pruebas de integración end-to-end y fallback
-    ├── test_visualize.py          ← Pruebas de renderizado y exportación gráfica
-    ├── test_benchmark.py          ← Pruebas del módulo de benchmarking
-    ├── test_vision_structure.py   ← Pruebas de geometría y jaulas
-    ├── test_ocr.py                ← Pruebas de clasificación de glifos
-    └── test_render.py             ← Pruebas del generador sintético
+├── docs/                          ← Documentación técnica estructurada
+│   ├── README.md                  ← Índice temático central
+│   ├── cp_documentation.md        ← Documentación formal del modelo CP-SAT
+│   ├── cnn_explicada.md           ← Arquitectura y entrenamiento de la CNN
+│   ├── politica_fidedignidad_y_abstencion.md
+│   └── archive/                   ← Histórico de planes y borradores
+│       └── PLAN_FASE1.md
+├── scratch/                       ← Entorno local de pruebas rápidas (ignorado por Git)
+│   └── README.md
+├── prototipo_interactivo/         ← Prototipo interactivo en Gradio / Hugging Face Spaces
+└── tests/                         ← Suite de pruebas automatizadas (pytest)
+    ├── conftest.py                ← Fixtures compartidas de prueba
+    ├── test_model.py              ← Pruebas del solver CP
+    ├── test_pipeline.py           ← Pruebas de integración end-to-end
+    ├── test_visualize.py          ← Pruebas de renderizado gráfico
+    ├── test_benchmark.py          ← Pruebas de benchmarking
+    ├── test_vision_structure.py   ← Pruebas de análisis geométrico
+    ├── test_ocr.py                ← Pruebas de OCR y CNN
+    ├── test_prototype.py          ← Pruebas del prototipo interactivo
+    └── test_render.py             ← Pruebas de generación sintética
 ```
 
 ---
@@ -238,12 +263,12 @@ El proyecto cuenta con una cobertura integral de pruebas unitarias e integració
 Para ejecutar todas las pruebas:
 
 ```bash
-python -m pytest tests/ -v
+python -m pytest
 ```
 
 Resultado actual:
 ```text
-============================= 81 passed in 6.50s =============================
+============================= 91 passed in ~12s =============================
 ```
 
 ---

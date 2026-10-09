@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kenken-vision-cp-solver"
+version = "1.0.0"
+description = "Sistema neuro-simbólico de visión computacional y programación por restricciones (CP-SAT) para KenKen"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "ortools>=9.10",
+    "numpy",
+    "opencv-python",
+    "matplotlib",
+    "torch",
+    "torchvision",
+    "pillow",
+    "pandas",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[project.scripts]
+kenken = "kenken.__main__:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-v"

@@ -1,0 +1,16 @@
+(a) etiquetas sueltas: 39227 glifos
+(b) recortes de tableros: 13571 glifos
+glifos por clase: {'0': 2080, '1': 5198, '2': 4329, '3': 3800, '4': 3937, '5': 3613, '6': 3594, '7': 3534, '8': 3604, '9': 3300, '+': 4696, '-': 3093, '*': 4687, '/': 3333}
+época  1  pérdida 0.9107  train 0.8024  val 0.9856  (100.8s)
+época  2  pérdida 0.3015  train 0.9829  val 0.9883  (93.5s)
+época  3  pérdida 0.2835  train 0.9864  val 0.9896  (91.2s)
+época  4  pérdida 0.2742  train 0.9879  val 0.9890  (81.8s)
+época  5  pérdida 0.2647  train 0.9888  val 0.9905  (74.5s)
+época  6  pérdida 0.2578  train 0.9899  val 0.9892  (70.2s)
+época  7  pérdida 0.2537  train 0.9907  val 0.9905  (70.6s)
+época  8  pérdida 0.2486  train 0.9913  val 0.9907  (84.3s)
+época  9  pérdida 0.2451  train 0.9917  val 0.9919  (81.6s)
+época 10  pérdida 0.2406  train 0.9928  val 0.9915  (78.9s)
+época 11  pérdida 0.2377  train 0.9935  val 0.9915  (81.4s)
+época 12  pérdida 0.2372  train 0.9935  val 0.9919  (80.9s)
+modelo guardado en C:\Users\User\OneDrive - Universidad Peruana de Ciencias\2026-20\Tópicos en CC\kenken-vision-cp-solver\models\ocr_cnn.pt
