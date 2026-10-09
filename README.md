@@ -13,6 +13,10 @@
 
 ## 1. Descripción General del Proyecto
 
+### Laboratorio web
+
+Ejecuta `./iniciar-web.ps1` en PowerShell para abrir **KenKen Lab** en `http://127.0.0.1:8000`: fotos nuevas con los modelos originales, catálogo en caché, editor y solver JSON en el navegador, exportación, código fuente y pruebas. La versión estática para GitHub Pages incluye el catálogo y el solver JSON; las fotos nuevas usan localhost. [Guía de inicio y despliegue](web/README.md).
+
 **KenKen Vision-CP Solver** es una arquitectura integral que une el aprendizaje perceptual y la inferencia lógica estricta. Resuelve acertijos matemáticos KenKen de cualquier dimensión ($n \times n$, $n \in \{3, \dots, 9\}$) directamente desde fotografías de periódicos, capturas digitales o escaneos impresos con iluminación irregular y perspectiva inclinada.
 
 A diferencia de los enfoques tradicionales que toman decisiones rígidas en la etapa de visión (provocando que un solo carácter mal interpretado haga el problema insoluble), este proyecto implementa **inferencia conjunta neuro-simbólica**: la etapa de visión computacional extrae un ranking de hipótesis sensoriales con sus respectivas log-probabilidades, y el solver de Programación por Restricciones selecciona simultáneamente la interpretación visual más verosímil que resulte matemáticamente consistente con las reglas del juego.

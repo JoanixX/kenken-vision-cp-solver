@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {test} from 'node:test';
+import {readFileSync,readdirSync} from 'node:fs';
+import {solve,validate,checkSolution,satisfies,generate} from '../public/solver.js';
+import {runChecks} from '../public/checks.js';
+const root=new URL('../../',import.meta.url);
+const examples=Object.fromEntries(readdirSync(new URL('examples/',root)).filter(x=>x.endsWith('.json')).map(name=>[name,JSON.parse(readFileSync(new URL('examples/'+name,root),'utf8'))]));
+for(const [name,instance] of Object.entries(examples))test('Resuelve '+name,()=>assert.ok(checkSolution(instance,solve(instance).grid)));
+test('Pruebas compartidas con la interfaz',()=>{const results=runChecks(examples);assert.deepEqual(results.filter(x=>!x.passed),[]);});
+test('Operaciones y alias',()=>{assert.ok(satisfies({target:2,op:'/'},[4,2]));assert.ok(satisfies({target:2,op:'-'},[1,3]));assert.ok(satisfies({target:6,op:'*'},[1,2,3]));assert.equal(validate({n:1,cages:[{cells:[[0,0]],target:1,op:''}]}).cages[0].op,'=');});
+test('No acepta coordenadas decimales ni objetivos no enteros',()=>{assert.throws(()=>validate({n:1,cages:[{cells:[[0.5,0]],target:1,op:'='}]}));assert.throws(()=>validate({n:1,cages:[{cells:[[0,0]],target:1.5,op:'='}]}));});
+test('Generación 3 a 9, varias semillas aleatorias',()=>{for(let n=3;n<=9;n++)for(let i=0;i<3;i++){const inst=generate(n);assert.ok(checkSolution(inst,solve(inst).grid));}});

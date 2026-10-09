@@ -25,6 +25,12 @@ dataset/synthetic_hard/
 # Gradio cache
 .gradio/
 
+# Generated static website (rebuilt locally or by GitHub Actions)
+web/public/assets/
+web/public/data/
+web/public/sw.js
+web/public/.nojekyll
+
 # LaTeX build artifacts
 informe/*.aux
 informe/*.log
