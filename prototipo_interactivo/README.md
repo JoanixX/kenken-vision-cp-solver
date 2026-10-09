@@ -8,7 +8,7 @@ sdk_version: 6.29.1
 app_file: app.py
 pinned: false
 license: mit
-short_description: Escaneo por cámara y resolución de KenKen con OpenCV y OR-Tools CP-SAT
+short_description: KenKen Solver con OpenCV y OR-Tools CP-SAT
 ---
 
 # 🧩 KenKen Vision-CP Solver (Hugging Face Space)

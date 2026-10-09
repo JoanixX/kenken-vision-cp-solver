@@ -21,9 +21,17 @@ import cv2
 import gradio as gr
 import numpy as np
 
+try:
+    import spaces
+    gpu_decorator = spaces.GPU
+except Exception:
+    def gpu_decorator(fn):
+        return fn
+
 from kenken.pipeline import solve_image
 
 
+@gpu_decorator
 def resolver_kenken(image: np.ndarray | None, method: str = "auto", render_mode: str = "composite"):
     """Callback para procesar la imagen capturada o subida en Gradio."""
     if image is None:
@@ -285,6 +293,9 @@ def build_app() -> gr.Blocks:
     return demo
 
 
+demo = build_app()
+
+
 def main():
     parser = argparse.ArgumentParser(description="KenKen Solver Gradio App para Hugging Face Spaces")
     parser.add_argument("--host", default="0.0.0.0", help="Dirección host (default: 0.0.0.0)")
@@ -296,16 +307,10 @@ def main():
     )
     args = parser.parse_args()
 
-    theme = gr.themes.Soft(
-        primary_hue="blue",
-        secondary_hue="indigo",
-        neutral_hue="slate",
-    )
-    app = build_app()
     print(f"\n[✓] Iniciando servidor Gradio en http://{args.host}:{args.port}")
     if args.share:
         print("[✓] Generando enlace público HTTPS para acceso móvil...")
-    app.launch(server_name=args.host, server_port=args.port, share=args.share, theme=theme)
+    demo.launch(server_name=args.host, server_port=args.port, share=args.share)
 
 
 if __name__ == "__main__":
