@@ -1,6 +1,8 @@
 \documentclass[conference]{IEEEtran}
 \usepackage[utf8]{inputenc}
-\usepackage[spanish,es-tabla]{babel}
+\renewcommand{\tablename}{Cuadro}
+\renewcommand{\figurename}{Fig.}
+\renewcommand{\abstractname}{Resumen}
 \usepackage{amsmath,amssymb,amsfonts}
 \usepackage{algorithmic}
 \usepackage{graphicx}
@@ -8,56 +10,90 @@
 \usepackage{xcolor}
 \usepackage{booktabs}
 \usepackage{cite}
+\usepackage{microtype}
 \usepackage{url}
 \usepackage{hyperref}
+
+% Configuración de saltos de URL para evitar Overfull/Underfull \hbox
+\def\UrlBreaks{\do\/\do-\do\_}
 
 \hypersetup{
     colorlinks=true,
     linkcolor=blue,
     citecolor=blue,
-    urlcolor=blue
+    urlcolor=blue,
+    pdfauthor={Joaquin Basas, Joaquin Alvarado, Johan Quispe},
+    pdftitle={Sistema Hibrido Neuro-Simbolico de Vision por Computador y Programacion por Restricciones para la Resolucion de KenKen}
 }
 
 \begin{document}
 
 \title{Sistema H\'{\i}brido Neuro-Simb\'olico de Visi\'on por Computador y Programaci\'on por Restricciones para la Resoluci\'on de KenKen}
 
-\author{\IEEEauthorblockN{Proyecto de Investigaci\'on Aplicada}
-\IEEEauthorblockA{\textit{T\'opicos en Ciencias de la Computaci\'on} \\
-\textit{Universidad Peruana de Ciencias Aplicadas (UPC)}\\
-Lima, Per\'u}
+\author{
+    \IEEEauthorblockN{Joaqu\'{\i}n Basas, Joaqu\'{\i}n Alvarado, Johan Quispe}
+    \IEEEauthorblockA{\textit{T\'opicos en Ciencias de la Computaci\'on (CC58)} \\
+    \textit{Universidad Peruana de Ciencias Aplicadas (UPC)}\\
+    Lima, Per\'u \\
+    \href{https://github.com/JoanixX/kenken-vision-cp-solver}{\texttt{GitHub: JoanixX/kenken-vision-cp-solver}} \\
+    \href{https://huggingface.co/spaces/joako2202/kenken-solver}{\texttt{Demo: joako2202/kenken-solver}}}
 }
 
 \maketitle
 
 \begin{abstract}
-Este art\'{\i}culo presenta una arquitectura integral neuro-simb\'olica para la resoluci\'on automatizada de acertijos aritm\'etico-l\'ogicos KenKen a partir de im\'agenes sin procesar. El sistema articula una fase sensorial de visi\'on computacional (correcci\'on de perspectiva, segmentaci\'on de cuadr\'{\i}cula y reconocimiento \'optico de caracteres con probabilidades de confusi\'on) con un motor de Programaci\'on por Restricciones (CP) sustentado en CP-SAT de Google OR-Tools. Formulamos el problema formalmente como un CSP $\langle X, D, C \rangle$, implementando y contrastando emp\'{\i}ricamente: (1) modelado aritm\'etico intensional con descomposici\'on de productos y divisi\'on reificada, (2) restricciones globales extensionales de tabla con garant\'{\i}a de Consistencia de Arco Generalizada (GAC), y (3) inferencia conjunta neuro-simb\'olica (MAP) para recuperaci\'on robusta ante fallos de lectura OCR. En evaluaciones sistem\'aticas sobre \'ordenes $n \in [3, 9]$, el solver resuelve tableros de hasta $9 \times 9$ ($1.96 \times 10^{77}$ estados brutos) en menos de 21~ms en el nodo ra\'{\i}z con cero ramas de backtracking, demostrando una reducci\'on del 39.5\% en tiempo de resoluci\'on mediante restricciones de tabla en $n=9$.
+Este art\'{\i}culo presenta una arquitectura integral neuro-simb\'olica para la extracci\'on, interpretaci\'on y resoluci\'on automatizada de acertijos aritm\'etico-l\'ogicos KenKen a partir de im\'agenes sin procesar. El sistema articula una fase sensorial de visi\'on computacional (rectificaci\'on homogr\'afica $H$, clasificaci\'on de bordes v\'{\i}a Otsu y \textit{Union-Find}, binarizaci\'on adaptativa por desenfoque gaussiano y reconocimiento \'optico de caracteres con una red \texttt{GlyphCNN} adaptada mediante \textit{Fine-Tuning} con \textit{Focal Loss} y miner\'{\i}a de ejemplos dif\'{\i}ciles) con un motor de Programaci\'on por Restricciones (CP) sustentado en Google OR-Tools CP-SAT. Formulamos el problema rigurosamente como un CSP $\langle X, D, C \rangle$, contrastando emp\'{\i}ricamente: (1) modelado aritm\'etico intensional con descomposici\'on de productos y divisi\'on reificada, (2) restricciones globales extensionales de tabla con garant\'{\i}a de Consistencia de Arco Generalizada (GAC), y (3) inferencia conjunta neuro-simb\'olica (MAP) con regularizaci\'on $\ell_0$ para recuperaci\'on robusta ante errores de lectura visual sin incurrir en divergencia. Evaluaciones sistem\'aticas sobre tres corpus (Sint\'etico Normal de 300 im\'agenes, Sint\'etico Dif\'{\i}cil de 150 im\'agenes y un dataset de estr\'es de 50 tableros patol\'ogicos) demuestran una exactitud por glifo del $99.51\%$ y una tasa de resoluci\'on r\'ecord del $90.33\%$ en im\'agenes normales. En an\'alisis de complejidad sobre \'ordenes $n \in [3, 9]$, el solver resuelve tableros de hasta $9 \times 9$ ($1.96 \times 10^{77}$ estados brutos) en menos de $13\text{ ms}$ en el nodo ra\'{\i}z con cero ramas de \textit{backtracking}, logrando una reducci\'on del $39.5\%$ en tiempo de c\'alculo mediante restricciones de tabla en $n=9$. Finalmente, se implementa una pol\'{\i}tica de clasificaci\'on selectiva con opci\'on de rechazo basada en un sem\'aforo de fiabilidad gradual y una interfaz interactiva en Gradio desplegada en Hugging Face Spaces con 21 muestras operacionales.
 \end{abstract}
 
 \begin{IEEEkeywords}
-Programaci\'on por Restricciones, KenKen, Inferencia Neuro-Simb\'olica, Restricciones de Tabla, GAC, CP-SAT, Visi\'on por Computador.
+Programaci\'on por Restricciones, KenKen, Inferencia Neuro-Simb\'olica, Restricciones de Tabla, GAC, CP-SAT, Visi\'on por Computador, Focal Loss, Clasificaci\'on Selectiva.
 \end{IEEEkeywords}
 
 \section{Introducci\'on}
-El acertijo KenKen, inventado en 2004 por Tetsuya Miyamoto, generaliza el concepto de Cuadrado Latino al imponer restricciones aritm\'eticas sobre subconjuntos conexos de celdas denominados \textit{jaulas} (\textit{cages}). A diferencia de Sudoku, la topolog\'{\i}a irregular de las jaulas y la multiplicidad de operadores ($=, +, -, \times, \div$) provocan una explosi\'on combinatoria exponencial en el espacio de estados no restringido $\mathcal{O}(n^{n^2})$.
+El acertijo KenKen, creado en 2004 por el pedagogo japon\'es Tetsuya Miyamoto, generaliza la teor\'{\i}a combinatoria de los Cuadrados Latinos al imponer restricciones aritm\'eticas sobre subconjuntos conexos e irregulares de celdas denominados \textit{jaulas} (\textit{cages}). A diferencia de Sudoku, donde la estructura subcuadriculada de $3 \times 3$ es uniforme y r\'{\i}gida, las jaulas de KenKen var\'{\i}an en tama\~no, orientaci\'on espacial y operadores aritm\'eticos ($\{=, +, -, \times, \div\}$). Esto induce un espacio de b\'usqueda combinatorial bruto que escala asint\'oticamente como $\mathcal{O}(n^{n^2})$.
 
-El desaf\'{\i}o t\'ecnico se intensifica cuando el tablero debe inferirse directamente desde im\'agenes f\'{\i}sicas o capturas de c\'amara: peque\~nas ambig\"uedades o ruidos en el reconocimiento \'optico de caracteres (OCR) tornan el CSP r\'{\i}gido en insatisfactible si se asumen lecturas deterministas ingenuas. Para solventar este paradigma, proponemos una formulaci\'on neuro-simb\'olica h\'{\i}brida donde la visi\'on provee distribuciones de probabilidad sobre hip\'otesis visuales y el solver de CP resuelve de forma conjunta la consistencia l\'ogica y la optimizaci\'on sensorial v\'{\i}a reificaci\'on condicional.
+El desaf\'{\i}o cient\'{\i}fico se intensifica cuando el estado del problema no est\'a disponible como una matriz estructurada, sino que debe deducirse a partir de fotograf\'{\i}as f\'{\i}sicas o capturas de pantalla tomadas bajo iluminaci\'on heterog\'enea, sombras proyectadas y distorsi\'on geom\'etrica de perspectiva. En pipelines tradicionales puramente modulares, un \'unico car\'acter o signo mal reconocido por la visi\'on por computador altera las ecuaciones matem\'aticas, transformando una instancia v\'alida en un problema insatisfactible (\texttt{INFEASIBLE}) o conduciendo a soluciones corruptas.
 
-\section{Arquitectura del Pipeline End-to-End}
-El flujo de procesamiento se estructura en tres etapas secuenciales con lazo de retroalimentaci\'on correctivo:
+Para solventar esta fragilidad inherente, en este trabajo desarrollamos e implementamos una arquitectura h\'{\i}brida neuro-simb\'olica orientada a la robustez sensorial y eficiencia computacional:
 \begin{enumerate}
-    \item \textbf{Preprocesamiento y Rectificaci\'on Geom\'etrica:} Detecci\'on del contorno cuadrangular dominante de la grilla mediante transformadas morfol\'ogicas y rectificaci\'on de perspectiva mediante transformaci\'on proyectiva homogr\'afica.
-    \item \textbf{Detecci\'on Topol\'ogica y OCR:} Segmentaci\'on de bordes de jaula, extracci\'on de las regiones de texto/glifos y clasificaci\'on con matrices de confusi\'on para obtener un ranking de candidatos $(T_{c,k}, \text{op}_{c,k}, P_{c,k})$.
-    \item \textbf{Motor de Constraint Programming y Fallback:} Resoluci\'on inicial r\'apida con hip\'otesis \textit{top-1}. En caso de insatisfactibilidad (\texttt{INFEASIBLE}), el sistema activa de forma totalmente autom\'atica el modelo de inferencia conjunta neuro-simb\'olica (Variante C).
+    \item En la fase sensorial, desacoplamos la geometr\'{\i}a global mediante homograf\'{\i}a proyectiva $H$ y binarizaci\'on adaptativa por desenfoque gaussiano, alimentando una red neuronal convolucional especializada (\texttt{GlyphCNN}) entrenada mediante \textit{Focal Loss} con miner\'{\i}a de ejemplos dif\'{\i}ciles (\textit{Hard Example Mining}) y poda sint\'actica can\'onica por tama\~no de jaula.
+    \item En la fase simb\'olica, formulamos el problema formalmente en OR-Tools CP-SAT mediante restricciones globales \texttt{AllDifferent} y restricciones de tabla extensionales que garantizan Consistencia de Arco Generalizada (GAC).
+    \item Para la integraci\'on de ambas fases, formulamos un modelo de \textbf{Inferencia Conjunta Neuro-Simb\'olica (Variante C / MAP)} que resuelve simult\'aneamente la coherencia del Cuadrado Latino y la selecci\'on de hip\'otesis visuales veros\'{\i}miles, incorporando una \textbf{penalizaci\'on $\ell_0$ constante} para prevenir mutaciones descontroladas (pseudo-soluciones divergentes).
+    \item Implementamos una pol\'{\i}tica de fidedignidad basada en la teor\'{\i}a de clasificaci\'on selectiva y opci\'on de rechazo, proporcionando un sem\'aforo de fiabilidad transparente que audita la fidelidad visual sin censurar soluciones factibles, desplegado en la nube v\'{\i}a Hugging Face Spaces (\url{https://huggingface.co/spaces/joako2202/kenken-solver}).
 \end{enumerate}
 
-% Inclusión del modelado formal de CP, complejidad y resultados experimentales
+El c\'odigo fuente del proyecto se encuentra disponible en GitHub (\url{https://github.com/JoanixX/kenken-vision-cp-solver}).
+
+% Inclusión modular de las secciones del informe
+\input{vision_pipeline_section}
+
 \input{cp_model_section}
 
-\section{Conclusiones y Trabajo Futuro}
-La integraci\'on de t\'ecnicas de Programaci\'on por Restricciones (CP-SAT) con visi\'on por computador ha permitido desarrollar un sistema robusto de alta eficiencia para la resoluci\'on de KenKen. El uso de restricciones globales extensionales de tabla (\texttt{AllowedAssignments}) demostr\'o alcanzar Consistencia de Arco Generalizada (GAC), logrando una aceleraci\'on de casi el 40\% en $n=9$ respecto al modelo intensional. Asimismo, el esquema de inferencia conjunta mediante reificaci\'on probabil\'{\i}stica confiere al sistema una tolerancia completa frente a errores sensoriales del OCR.
+\input{complexity_results_section}
 
-Como trabajo futuro, se proyecta la extensi\'on del marco de inferencia hacia aprendizaje end-to-end de pesos de confianza mediante diferenciaci\'on de solvers combinatorios y la evaluaci\'on del pipeline sobre datasets reales capturados en condiciones lum\'{\i}nicas adversas.
+\input{reliability_section}
+
+\input{integration_section}
+
+\section{Discusi\'on y Limitaciones}
+\label{sec:discussion}
+Los experimentos realizados ponen de manifiesto la asimetr\'{\i}a fundamental entre la percepci\'on visual y la deducci\'on simb\'olica en problemas combinatorios. Mientras que la reconstrucci\'on topol\'ogica de la cuadr\'{\i}cula y la identificaci\'on de jaulas alcanzan exactitudes superiores al $96\%$ en tableros limpios, el reconocimiento de etiquetas individuales est\'a fuertemente condicionado por factores f\'{\i}sicos como el \textit{kerning} entre caracteres y el ruido de fondo, siendo el operador de divisi\'on ($\div$) especialmente propenso a confundirse con $+$ ante trazos cruzados espurios.
+
+La formulaci\'on de inferencia conjunta neuro-simb\'olica (MAP) demostr\'o ser una herramienta extraordinaria de rescate: en el dataset de estr\'es elev\'o la tasa de resoluci\'on exacta del Ground Truth del $4.0\%$ al $58.0\%$. Sin embargo, la investigaci\'on revel\'o el riesgo intr\'{\i}nseco de la \textbf{divergencia}: cuando la etiqueta verdadera est\'a ausente del conjunto Top-$k$, un solver de CP sin regularizar puede recombinar lecturas de bajo rango para satisfacer la cuadr\'{\i}cula, entregando una soluci\'on v\'alida para un problema espurio. La introducci\'on de la poda sint\'actica (eliminando $-$ y $\div$ en jaulas de $|V_c| \ge 3$) y la regularizaci\'on $\ell_0$ con $\lambda_{\text{change}} = 1.5$ logr\'o acotar dr\'asticamente este fen\'omeno, asegurando que las correcciones sean leg\'{\i}timas y auditables.
+
+Como limitaci\'on actual, el sistema asume que la grilla fotografiada posee contornos exteriores rectil\'{\i}neos diferenciables del fondo. Fotograf\'{\i}as de papel fuertemente doblado o arrugado con distorsi\'on curvil\'{\i}nea requerir\'{\i}an t\'ecnicas de desdoblamiento de superficie (\textit{page dewarping}) previas a la homograf\'{\i}a proyectiva plana.
+
+\section{Conclusiones}
+\label{sec:conclusions}
+En este trabajo se present\'o, formaliz\'o y evalu\'o exhaustivamente un sistema integral para la resoluci\'on automatizada de acertijos KenKen mediante la combinaci\'on sin\'ergica de visi\'on computacional, redes convolucionales y programaci\'on por restricciones con CP-SAT.
+
+Las principales contribuciones y hallazgos emp\'{\i}ricos son:
+\begin{enumerate}
+    \item \textbf{Alta Resiliencia en Visi\'on:} La red neuronal \texttt{GlyphCNN} adaptada con \textit{Focal Loss} y miner\'{\i}a de ejemplos alcanz\'o un $99.51\%$ de exactitud por glifo en el dataset sint\'etico general y un $90.99\%$ bajo perturbaciones severas, resolviendo hasta el $100\%$ de los tableros $4\times4$ y superando el $90\%$ de resoluci\'on integral en im\'agenes est\'andar.
+    \item \textbf{Filtrado GAC y Eficiencia del Solver:} El modelado extensional con restricciones globales de tabla (\texttt{AllowedAssignments}) demostr\'o una aceleraci\'on del $39.5\%$ en $n=9$ respecto a la formulaci\'on aritm\'etica intensional, resolviendo todas las instancias evaluadas en el nodo ra\'{\i}z con 0 ramas de \textit{backtracking} en menos de $13\text{ ms}$.
+    \item \textbf{Inferencia Conjunta Regularizada y Fidedignidad:} La formulaci\'on MAP con penalizaci\'on $\ell_0$ y el sem\'aforo de fiabilidad gradual garantizan un balance \'optimo entre la tolerancia a fallos perceptuales y la honestidad algor\'{\i}tmica, evitando la creaci\'on de soluciones divergentes enga\~nosas.
+    \item \textbf{Software Modular e Interactivo:} El pipeline opera de extremo a extremo sin intervenci\'on humana y dispone de un prototipo interactivo en Gradio desplegado en Hugging Face Spaces (\url{https://huggingface.co/spaces/joako2202/kenken-solver}) validado con 21 muestras operacionales y 90 pruebas unitarias con 100\% de cobertura exitosa.
+\end{enumerate}
 
 \bibliographystyle{IEEEtran}
 \bibliography{refs}

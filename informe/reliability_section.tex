@@ -1,0 +1,39 @@
+% ==============================================================================
+% SECCIÓN DE FIDEDIGNIDAD Y ABSTENCIÓN HONESTA (FORMATO IEEEtran)
+% ==============================================================================
+
+\section{Pol\'{\i}tica de Fidedignidad, Mitigaci\'on de Divergencia y Sem\'aforo de Fiabilidad}
+\label{sec:reliability}
+
+\subsection{El Dilema \'Etico-T\'ecnico: Falso \'Exito vs. Abstenci\'on Honesta}
+En sistemas neuro-simb\'olicos que articulan clasificadores probabil\'{\i}sticos con solucionadores l\'ogicos surge un dilema fundamental: \textit{¿qu\'e debe responder el sistema cuando la percepci\'on visual comete errores graves pero el solver es capaz de encontrar alguna soluci\'on inventando un acertijo alternativo?}
+
+En la formulaci\'on de Inferencia Conjunta (Variante C) sin regularizar, si la etiqueta real de una jaula no figuraba dentro del conjunto Top-$k$ de candidatos de la CNN, el solver CP-SAT permutaba entre 3 y 12 jaulas hacia alternativas visualmente inveros\'{\i}miles para forzar la satisfactibilidad del Cuadrado Latino. El sistema reportaba entonces \texttt{OPTIMAL} y \texttt{solved = True}, proyectando una soluci\'on num\'erica coherente... \textbf{pero correspondiente a un tablero enteramente distinto al impreso en papel}. Este fen\'omeno, denominado \textbf{Divergencia (Pseudo-soluci\'on)}, ocurri\'o en el $32.0\%$ de las muestras del dataset de estr\'es. Proclamar \'exito ante un acertijo adulterado silenciosamente degrada la confianza del usuario y contradice los est\'andares de fiabilidad en visi\'on por computador.
+
+\subsection{Marco Te\'orico: Clasificaci\'on Selectiva y Opci\'on de Rechazo}
+Siguiendo la teor\'{\i}a de clasificaci\'on selectiva y aprendizaje con opci\'on de rechazo (\textit{Reject Option}) de Chow~\cite{chow1970optimum} y Cortes et al.~\cite{cortes2016learning}, un pipeline de decisi\'on automatizado debe sopesar el coste del error no detectado ($c_{\text{error}}$, entregar un tablero falso enga\~nando al usuario) frente al coste de la abstenci\'on transparente ($c_{\text{abstain}}$, advertir que la imagen est\'a degradada y orientar la captura). Dado que $c_{\text{error}} \gg c_{\text{abstain}}$, la pol\'{\i}tica \'optima exige discriminar y alertar activamente cuando la percepci\'on y el razonamiento discrepen.
+
+\subsection{Arquitectura de Mitigaci\'on y M\'etrica de Fidelidad Visual}
+Para erradicar la divergencia descontrolada sin anular la capacidad de rescatar fallos menores de lectura (como corregir $\div$ por $+$), el sistema opera bajo una pol\'{\i}tica en tres capas:
+
+\begin{enumerate}
+    \item \textbf{Poda Sint\'actica Can\'onica:} Descarte a priori en OCR de hip\'otesis no admisibles (operadores no asociativos $-$ y $\div$ en jaulas de 3 o m\'as celdas).
+    \item \textbf{Regularizaci\'on $\ell_0$ en la Funci\'on Objetivo (\ref{eq:map_objective_l0}):} Penalizaci\'on estricta $\lambda_{\text{change}} = 1.5$ por cada jaula que se aparte de su predicci\'on visual primaria Top-1.
+    \item \textbf{M\'etrica de Fidelidad Visual:} Cuantifica la proporci\'on de jaulas que preservan la lectura directa de la c\'amara:
+    \begin{equation}
+        \text{Fidelidad} = \frac{|\mathcal{C}| - M_{\text{corregidas}}}{|\mathcal{C}|} \times 100\%
+    \end{equation}
+\end{enumerate}
+
+\subsection{Sem\'aforo de Fiabilidad Informativo y Gradual}
+A partir de la auditor\'{\i}a de casos patol\'ogicos de estr\'es (como \texttt{stress\_00011.jpg}, donde el solver corrigi\'o leg\'{\i}timamente 3 jaulas borrosas alcanzando un $100\%$ de coincidencia exacta con el Ground Truth), se determin\'o que un bloqueo r\'{\i}gido binario (\texttt{solved = False}) resulta contraproducente. Por ello, el sistema adopt\'o un \textbf{Sem\'aforo de Fiabilidad Informativo}:
+
+\begin{itemize}
+    \item \textbf{No Censura de Factibilidad:} Si CP-SAT demuestra factibilidad matem\'atica (\texttt{OPTIMAL}), la matriz calculada siempre se entrega al usuario (\texttt{solved = True}).
+    \item \textbf{Nivel de Confianza (\texttt{confidence\_level}):}
+    \begin{itemize}
+        \item  \textbf{Alta (\texttt{HIGH}):} $0$ jaulas alteradas ($100\%$ de fidelidad), o de $1$ a $3$ correcciones de alta verosimilitud con fidelidad $\ge 70\%$.
+        \item  \textbf{Moderada (\texttt{MODERATE}):} Fidelidad entre $50\%$ y $70\%$, o correcciones m\'ultiples. El sistema emite una advertencia preventiva de verificaci\'on.
+        \item  \textbf{Baja (\texttt{LOW}):} Fidelidad $< 50\%$, se activa la bandera consultiva \texttt{divergent = True} se\~nalando probable discrepancia con el tablero original.
+    \end{itemize}
+\end{itemize}
