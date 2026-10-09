@@ -7,3 +7,14 @@ dataset/synthetic/
 dataset/synthetic_hard/
 .gradio/
 *_backup.pt
+
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.bbl
+*.blg
+*.fls
+*.fdb_latexmk
