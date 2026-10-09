@@ -8,6 +8,7 @@
 [![OpenCV](https://img.shields.io/badge/OpenCV-4.10%2B-green.svg)](https://opencv.org/)
 [![Tests](https://img.shields.io/badge/Tests-91%20passing%20(100%25)-brightgreen.svg)](#suite-de-pruebas)
 [![Report](https://img.shields.io/badge/Informe-IEEEtran%20LaTeX-purple.svg)](informe/main.tex)
+[![Guía Maestra](https://img.shields.io/badge/Guía%20Maestra-Sistema%20y%20Exposición-teal.svg)](GUIA_MAESTRA_KENKEN_SISTEMA_Y_EXPOSICION.md)
 
 ---
 
@@ -151,6 +152,25 @@ draw_solution_clean(inst, res_a.grid, out_path="results/5x5_clean.png")
 
 ---
 
+### 4.3. Prototipo Web Interactivo (Streamlit & Acceso Móvil)
+
+El proyecto incluye una aplicación web interactiva en **Streamlit** equipada con soporte para cámara web/móvil (`st.camera_input`), subida de imágenes y catálogo con los 21 casos de prueba del TP:
+
+```bash
+# Ejecutar localmente desde la raíz
+streamlit run streamlit_app.py
+
+# O desde la carpeta del prototipo:
+streamlit run prototipo_interactivo/app.py
+```
+
+Para desplegar la aplicación en la nube (de forma 100% gratuita y con HTTPS para usar la cámara del celular):
+* **Streamlit Community Cloud:** Conecta tu repositorio de GitHub directamente en [share.streamlit.io](https://share.streamlit.io/) seleccionando `streamlit_app.py`.
+* **Hugging Face Spaces:** Sube los archivos de `prototipo_interactivo/` a un Space configurado con SDK de Streamlit.
+* Consulta la guía completa paso a paso en [`prototipo_interactivo/DEPLOY_GUIDE.md`](prototipo_interactivo/DEPLOY_GUIDE.md).
+
+---
+
 ## 5. Rendimiento Experimental y Análisis de Complejidad
 
 Se evaluó el comportamiento del solver variando sistemáticamente el orden de la grilla desde $n=3$ hasta $n=9$ sobre tableros aleatorios con solución única garantizada:
@@ -232,8 +252,10 @@ kenken-vision-cp-solver/
 │   ├── main.tex                   ← Documento raíz IEEEtran
 │   ├── actualizar_docx.py         ← Generador automatizado a Microsoft Word
 │   └── figs/                      ← Figuras incluidas en el informe
+├── GUIA_MAESTRA_KENKEN_SISTEMA_Y_EXPOSICION.md ← Compendio maestro del sistema y exposición
 ├── docs/                          ← Documentación técnica estructurada
 │   ├── README.md                  ← Índice temático central
+│   ├── GUIA_MAESTRA_KENKEN_SISTEMA_Y_EXPOSICION.md ← Manual integral del proyecto
 │   ├── cp_documentation.md        ← Documentación formal del modelo CP-SAT
 │   ├── cnn_explicada.md           ← Arquitectura y entrenamiento de la CNN
 │   ├── politica_fidedignidad_y_abstencion.md
@@ -241,7 +263,8 @@ kenken-vision-cp-solver/
 │       └── PLAN_FASE1.md
 ├── scratch/                       ← Entorno local de pruebas rápidas (ignorado por Git)
 │   └── README.md
-├── prototipo_interactivo/         ← Prototipo interactivo en Gradio / Hugging Face Spaces
+├── prototipo_interactivo/         ← Prototipo interactivo en Streamlit / Hugging Face Spaces / Streamlit Cloud
+├── streamlit_app.py               ← Punto de entrada directo para despliegue en Streamlit Community Cloud
 └── tests/                         ← Suite de pruebas automatizadas (pytest)
     ├── conftest.py                ← Fixtures compartidas de prueba
     ├── test_model.py              ← Pruebas del solver CP

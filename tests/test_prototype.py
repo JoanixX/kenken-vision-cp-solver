@@ -3,14 +3,16 @@ import cv2
 import numpy as np
 import pytest
 
-from prototipo_interactivo.app import build_app, resolver_kenken
+from prototipo_interactivo.app import build_app, resolver_kenken, resolver_kenken_detallado
 
 
 def test_build_app_structure():
-    """Verifica que la aplicación de Gradio se construya correctamente."""
-    demo = build_app()
-    assert demo is not None
-    assert hasattr(demo, "blocks")
+    """Verifica que la aplicación de Streamlit exponga sus metadatos y catálogo correctamente."""
+    app_meta = build_app()
+    assert app_meta is not None
+    assert app_meta["framework"] == "Streamlit"
+    assert len(app_meta["categories"]) == 7
+    assert app_meta["total_cases"] == 21
 
 
 def test_resolver_kenken_with_valid_image():
@@ -135,20 +137,10 @@ def test_all_showcase_cases_exist():
         assert img is not None, f"El archivo {case_name} debe ser una imagen válida"
 
 
-def test_prototype_preview_components():
-    """Verifica que build_app incluya los componentes visuales de previsualización para el catálogo."""
-    import gradio as gr
-    demo = build_app()
-    # Contar componentes Image dentro de la demo (el input, el output y los previews de las muestras)
-    images = [b for b in demo.blocks.values() if isinstance(b, gr.Image)]
-    # Deberían ser al menos: 1 input + 1 output + 21 muestras = 23 componentes Image
-    assert len(images) >= 23, f"Se esperaban al menos 23 componentes Image, se encontraron {len(images)}"
-
-    # Verificar que existan botones interactivos para Cargar y Resolver
-    buttons = [b for b in demo.blocks.values() if isinstance(b, gr.Button)]
-    labels = [getattr(b, "value", "") for b in buttons]
-    assert any("Cargar" in str(v) for v in labels)
-    assert any("Resolver" in str(v) for v in labels)
-
-
-
+def test_resolver_kenken_detallado_structure():
+    """Verifica que el método detallado entregue todas las claves requeridas por la UI de Streamlit."""
+    res = resolver_kenken_detallado(None)
+    assert res["solved"] is False
+    assert "metrics_md" in res
+    assert "status" in res
+    assert "corrections" in res

@@ -95,7 +95,7 @@ Por ello, la arquitectura evolucionó de un bloqueo binario hacia un **Semáforo
 
 ---
 
-## 5. Experiencia de Usuario en el Prototipo Gradio (`prototipo_interactivo/app.py`)
+## 5. Experiencia de Usuario en el Prototipo Streamlit (`prototipo_interactivo/app.py`)
 
 En la interfaz interactiva:
 1. **Entrega de Solución:** Siempre se proyecta la cuadrícula resuelta si el solver alcanzó `OPTIMAL`.
@@ -115,7 +115,7 @@ Se implementaron pruebas unitarias específicas que verifican:
 2. `test_solve_joint_tracks_num_changed`: Verifica que $M_{\text{corregidas}}$ cuente exactamente las alteraciones respecto al Top-1.
 3. `test_solve_joint_zero_changes_when_clean`: Comprueba que tableros nítidos tengan $M_{\text{corregidas}} = 0$.
 4. `test_solve_image_divergence_metrics`: Confirma que el pipeline registre correctamente `fidelity`, `num_changed` y `confidence_level` manteniendo `solved = True` en `OPTIMAL`.
-5. `test_resolver_kenken_multiple_adjustments_warning`: Verifica que el callback de Gradio despliegue el aviso de verificación ante múltiples ajustes sin censurar la solución.
+5. `test_resolver_kenken_multiple_adjustments_warning`: Verifica que el callback del prototipo interactivo despliegue el aviso de verificación ante múltiples ajustes sin censurar la solución.
 6. `test_resolver_kenken_infeasible`: Confirma el reporte formal y transparente de `INFEASIBLE`.
 7. `test_all_showcase_cases_exist`: Valida que todas las imágenes demostrativas del prototipo existan y carguen correctamente.
 
